@@ -1,24 +1,3 @@
-//=============================================================================
-// FILE:
-//    HelloWorld.cpp
-//
-// DESCRIPTION:
-//    Visits all functions in a module, prints their names and the number of
-//    arguments via stderr. Strictly speaking, this is an analysis pass (i.e.
-//    the functions are not modified). However, in order to keep things simple
-//    there's no 'print' method here (every analysis pass should implement it).
-//
-// USAGE:
-//    1. Legacy PM
-//      opt -load libHelloWorld.dylib -legacy-hello-world -disable-output `\`
-//        <input-llvm-file>
-//    2. New PM
-//      opt -load-pass-plugin=libHelloWorld.dylib -passes="hello-world" `\`
-//        -disable-output <input-llvm-file>
-//
-//
-// License: MIT
-//=============================================================================
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Passes/PassPlugin.h"
@@ -27,14 +6,10 @@
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
+#include <bitset>
 
 using namespace llvm;
 
-//-----------------------------------------------------------------------------
-// HelloWorld implementation
-//-----------------------------------------------------------------------------
-// No need to expose the internals of the pass to the outside world - keep
-// everything in an anonymous namespace.
 namespace {
 
  const char *type_id[20] = {  "HalfTyID" , "BFloatTyID", "FloatTyID", "DoubleTyID", 
@@ -47,7 +22,22 @@ struct TestPass : public llvm::PassInfoMixin<TestPass> {
   llvm::PreservedAnalyses run(llvm::Function &F,
                               llvm::FunctionAnalysisManager &);
   bool runOnBasicBlock(llvm::BasicBlock &B);
+  __uint128_t genBitMask(int startPos, int repeats, int lengthPerRepeat, int numberOfOne);
 };
+
+__uint128_t TestPass::genBitMask(int startPos, int repeats, int lengthPerRepeat, int numberOfOne){
+  __uint128_t mask = 0;
+  __uint128_t bitSetMask = 0;
+  for (int i = 0; i < numberOfOne; i++) {
+    bitSetMask = (bitSetMask << 1) | 1;
+  }
+  bitSetMask = bitSetMask << startPos;
+  for (int i = 0; i < repeats; i++) {
+    mask = mask << lengthPerRepeat;
+    mask |= bitSetMask;
+  }
+  return mask;
+}
 
 
 bool TestPass::runOnBasicBlock(BasicBlock &BB) {
@@ -67,13 +57,34 @@ bool TestPass::runOnBasicBlock(BasicBlock &BB) {
 
    
     errs() << type_id[BinOp->getType()->getTypeID ()] << "\n";
+    // skip non-vector type operands
     if (BinOp->getType()->isVectorTy()){
       auto *t = dyn_cast<VectorType>(BinOp->getType());
-      errs() << type_id[t->getElementType ()->getTypeID ()] << "\n";
-      errs() <<"i" <<t->getElementType ()->getPrimitiveSizeInBits () << "\n";
-      errs() <<"x"<< t->getElementCount () << "\n";
-      auto Val1755 = ConstantInt::get(llvm::IntegerType::get(BB.getContext(),12), 1755);
-      auto Val2340 = ConstantInt::get(llvm::IntegerType::get(BB.getContext(),12), 2340);
+      // errs() << type_id[t->getElementType ()->getTypeID ()] << "\n";
+
+      // get element type size
+      auto typeSize = t->getElementType()->getPrimitiveSizeInBits().getFixedSize();
+      errs() <<"i" <<t->getElementType ()->getPrimitiveSizeInBits();
+      // get element count
+      auto elementCount = t->getElementCount().getFixedValue();
+      errs() <<"x" << t->getElementCount();
+      auto totalBits = typeSize * elementCount;
+      errs() << " totalBits:" << totalBits << "\n";
+
+      // skip vector size > 128 bits
+      if (totalBits > 128){
+        continue;
+      }
+      if (typeSize == 8 || typeSize > 15) {
+        continue;
+      }
+
+      // generate 2 instants for operation
+      __uint128_t mask1 = genBitMask(0, elementCount, typeSize, typeSize-1);
+      __uint128_t mask2 = ~mask1;
+
+      auto LOW_MASK = ConstantInt::get(llvm::IntegerType::get(BB.getContext(),totalBits), mask1);
+      auto HIGH_MASK = ConstantInt::get(llvm::IntegerType::get(BB.getContext(),totalBits), mask2);
       IRBuilder<> Builder(BinOp);
       Instruction* NewInst = new
         // bitcast r4 to 4xi3
@@ -89,10 +100,10 @@ bool TestPass::runOnBasicBlock(BasicBlock &BB) {
                 Builder.CreateBitCast(
                   BinOp->getOperand(0)
                   ,
-                  llvm::IntegerType::get(BB.getContext(),12)
+                  llvm::IntegerType::get(BB.getContext(),totalBits)
                 )
                 ,
-                Val1755
+                LOW_MASK
               )
               ,
               // m2 = and i12 a2 1755 "011011011011"
@@ -101,10 +112,10 @@ bool TestPass::runOnBasicBlock(BasicBlock &BB) {
                 Builder.CreateBitCast(
                   BinOp->getOperand(1)
                   ,
-                  llvm::IntegerType::get(BB.getContext(),12)
+                  llvm::IntegerType::get(BB.getContext(),totalBits)
                 )
                 ,
-                Val1755
+                LOW_MASK
               )
             )
             ,
@@ -116,18 +127,18 @@ bool TestPass::runOnBasicBlock(BasicBlock &BB) {
                 Builder.CreateBitCast(
                   BinOp->getOperand(0)
                   ,
-                  llvm::IntegerType::get(BB.getContext(),12)
+                  llvm::IntegerType::get(BB.getContext(),totalBits)
                 )
                 ,
                 // a2 = bitcast b to i12
                 Builder.CreateBitCast(
                   BinOp->getOperand(1)
                   ,
-                  llvm::IntegerType::get(BB.getContext(),12)
+                  llvm::IntegerType::get(BB.getContext(),totalBits)
                 )
               )
               ,
-              Val2340
+              HIGH_MASK
             )
           )
           ,t
