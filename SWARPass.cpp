@@ -34,14 +34,15 @@ struct SWARPass : public llvm::PassInfoMixin<SWARPass> {
 
 SWARPass::Mask SWARPass::genBitMask(int repeats, int lengthPerRepeat){
   SWARPass::Mask mask;
-  for(int i=0; i< repeats*lengthPerRepeat;i++){
-    if(i%lengthPerRepeat!=0){
-      mask.mask_low[i/64]=(mask.mask_low[i/64] << 1)|1;
-      mask.mask_high[i/64]=(mask.mask_high[i/64] << 1)|0;
+  unsigned long long temp=0;
+  for(int i=repeats*lengthPerRepeat-1; i>=0;i--){
+    if((i+1)%lengthPerRepeat!=0){
+      mask.mask_low[i/64]=mask.mask_low[i/64]|(unsigned long long)1<<i%64;
+      mask.mask_high[i/64]=mask.mask_high[i/64]|(unsigned long long)0<<i%64;
     }
     else{
-      mask.mask_low[i/64]=(mask.mask_low[i/64] << 1)|0;
-      mask.mask_high[i/64]=(mask.mask_high[i/64] << 1)|1;
+      mask.mask_low[i/64]=mask.mask_low[i/64]|(unsigned long long)0<<i%64;
+      mask.mask_high[i/64]=mask.mask_high[i/64]|(unsigned long long)1<<i%64;
     }
   }
   return mask;
@@ -60,16 +61,18 @@ Instruction* SWARPass::SWARAdd(llvm::BasicBlock* BB,llvm::BinaryOperator* BinOp)
   }
   IRBuilder<> Builder(BinOp);
   SWARPass::Mask mask =genBitMask(elementCount,typeSize);
-  errs() <<"mask_low"<< mask.mask_low[0] << "\n";
-  errs() <<"mask_high"<< mask.mask_high[0] << "\n";
+  errs() <<"mask_low0 "<< mask.mask_low[0] << "\n";
+  errs() <<"mask_low1 "<< mask.mask_low[1] << "\n";
+  errs() <<"mask_high0 "<< mask.mask_high[0] << "\n";
+  errs() <<"mask_high1 "<< mask.mask_high[1] << "\n";
   Value* LOW_MASK;
   Value* HIGH_MASK;
   if (totalBits <= 64){
     LOW_MASK = ConstantInt::get(llvm::IntegerType::get(BB->getContext(),totalBits), mask.mask_low[0]);
-    HIGH_MASK = ConstantInt::get(llvm::IntegerType::get(BB->getContext(),totalBits), mask.mask_high[1]);
+    HIGH_MASK = ConstantInt::get(llvm::IntegerType::get(BB->getContext(),totalBits), mask.mask_high[0]);
   }
   else if(totalBits>64 && totalBits<=128){
-    LOW_MASK=Builder.CreateAnd(
+    LOW_MASK=Builder.CreateOr(
         ConstantInt::get(llvm::IntegerType::get(BB->getContext(),totalBits), mask.mask_low[0])
         ,
         Builder.CreateShl(
@@ -78,7 +81,7 @@ Instruction* SWARPass::SWARAdd(llvm::BasicBlock* BB,llvm::BinaryOperator* BinOp)
           64
         )
       );
-    HIGH_MASK=Builder.CreateAnd(
+    HIGH_MASK=Builder.CreateOr(
         ConstantInt::get(llvm::IntegerType::get(BB->getContext(),totalBits), mask.mask_high[0])
         ,
         Builder.CreateShl(
@@ -87,7 +90,10 @@ Instruction* SWARPass::SWARAdd(llvm::BasicBlock* BB,llvm::BinaryOperator* BinOp)
           64
         )
       );
+    
   }
+  errs() <<"mask_LOW "<< *LOW_MASK << "\n";
+  errs() <<"mask_HIGH "<< *HIGH_MASK << "\n";
   
   Instruction* NewInst = new
     // bitcast r4 to 4xi3
