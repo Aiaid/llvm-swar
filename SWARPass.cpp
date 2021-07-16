@@ -29,6 +29,7 @@ struct SWARPass : public llvm::PassInfoMixin<SWARPass> {
   Mask genBitMask(int repeats, int lengthPerRepeat);
   Instruction* SWARAdd(llvm::BasicBlock* BB,llvm::BinaryOperator* BinOP);
   Instruction* SWARSub(llvm::BasicBlock* BB,llvm::BinaryOperator* BinOP);
+  Instruction* SWARMul(llvm::BasicBlock* BB,llvm::BinaryOperator* BinOP);
 };
 
 
@@ -173,7 +174,56 @@ Instruction* SWARPass::SWARSub(llvm::BasicBlock* BB,llvm::BinaryOperator* BinOp)
 
 }
 
+Instruction* SWARPass::SWARMul(llvm::BasicBlock* BB,llvm::BinaryOperator* BinOp){
+  auto *t = dyn_cast<VectorType>(BinOp->getType());
+  auto typeSize = t->getElementType()->getPrimitiveSizeInBits().getFixedSize();
+  auto elementCount = t->getElementCount().getFixedValue();
+  auto totalBits = typeSize * elementCount;
+  if (totalBits > 128){
+    return nullptr;
+  }
+  if(typeSize!=8 || elementCount!=16){
+    return nullptr;
+  }
 
+  IRBuilder<> Builder(BinOp);
+  
+  // a1 = bitcast a to i<totalBits>
+  auto a1=BinOp->getOperand(0);
+  // a2 = bitcast a to i<totalBits>
+  auto a2=BinOp->getOperand(1);
+  Value* m1[8];
+  Value* m2[8];
+  Value* m3[8];
+  Value* m4[8];
+  Value* m5[8];
+  Value* m6[8];
+  for (int i = 0; i < 8; i++)
+  {
+    if (i!=0){
+      m1[i]=Builder.CreateLShr(a1,i);
+      m2[i]=Builder.CreateTrunc(m1[i],llvm::FixedVectorType::get(llvm::IntegerType::get(BB->getContext(),1),elementCount));
+      m3[i]=Builder.CreateSExt(m2[i],llvm::FixedVectorType::get(llvm::IntegerType::get(BB->getContext(),typeSize),elementCount));
+      m4[i]=Builder.CreateShl(a2,i);
+      m5[i]=Builder.CreateAnd(m3[i],m4[i]);
+    }
+    else{
+      m1[i]=a1;
+      m2[i]=Builder.CreateTrunc(m1[i],llvm::FixedVectorType::get(llvm::IntegerType::get(BB->getContext(),1),elementCount));
+      m3[i]=Builder.CreateSExt(m2[i],llvm::FixedVectorType::get(llvm::IntegerType::get(BB->getContext(),typeSize),elementCount));
+      m4[i]=a2;
+      m5[i]=Builder.CreateAnd(m3[i],m4[i]);
+    }
+    if (i!=0)
+      m6[i]=Builder.CreateAdd(m5[i],m6[i-1]);
+    else
+      m6[i]=m5[i];
+  }
+
+  Instruction* NewInst = new llvm::BitCastInst(m6[7],t);
+  return NewInst;
+
+}
 
 
 
@@ -200,6 +250,9 @@ bool SWARPass::runOnBasicBlock(BasicBlock &BB) {
         break;
       case Instruction::Sub:
         NewInst = SWARSub(&BB,BinOp);
+        break;
+      case Instruction::Mul:
+        NewInst = SWARMul(&BB,BinOp);
         break;
       default:
         break;
