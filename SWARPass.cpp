@@ -28,6 +28,7 @@ struct SWARPass : public llvm::PassInfoMixin<SWARPass> {
 
   Mask genBitMask(int repeats, int lengthPerRepeat);
   Instruction* SWARAdd(llvm::BasicBlock* BB,llvm::BinaryOperator* BinOP);
+  Instruction* SWARSub(llvm::BasicBlock* BB,llvm::BinaryOperator* BinOP);
 };
 
 
@@ -61,10 +62,6 @@ Instruction* SWARPass::SWARAdd(llvm::BasicBlock* BB,llvm::BinaryOperator* BinOp)
   }
   IRBuilder<> Builder(BinOp);
   SWARPass::Mask mask =genBitMask(elementCount,typeSize);
-  errs() <<"mask_low0 "<< mask.mask_low[0] << "\n";
-  errs() <<"mask_low1 "<< mask.mask_low[1] << "\n";
-  errs() <<"mask_high0 "<< mask.mask_high[0] << "\n";
-  errs() <<"mask_high1 "<< mask.mask_high[1] << "\n";
   Value* LOW_MASK;
   Value* HIGH_MASK;
   if (totalBits <= 64){
@@ -92,66 +89,86 @@ Instruction* SWARPass::SWARAdd(llvm::BasicBlock* BB,llvm::BinaryOperator* BinOp)
       );
     
   }
-  errs() <<"mask_LOW "<< *LOW_MASK << "\n";
-  errs() <<"mask_HIGH "<< *HIGH_MASK << "\n";
-  
-  Instruction* NewInst = new
-    // bitcast r4 to 4xi3
-    llvm::BitCastInst(
-      // BinOp,llvm::IntegerType::get(BB.getContext(),12)
-      // r4 = xor i12 r1 r3
-      Builder.CreateXor(
-        // r1 = add i12 m1 m2
-        Builder.CreateAdd(
-          // m1 = and i12 a1 1755 "011011011011"
-          Builder.CreateAnd(
-            // a1 = bitcast a to i12
-            Builder.CreateBitCast(
-              BinOp->getOperand(0)
-              ,
-              llvm::IntegerType::get(BB->getContext(),totalBits)
-            )
-            ,
-            LOW_MASK
-          )
-          ,
-          // m2 = and i12 a2 1755 "011011011011"
-          Builder.CreateAnd(
-            // a2 = bitcast a to i12
-            Builder.CreateBitCast(
-              BinOp->getOperand(1)
-              ,
-              llvm::IntegerType::get(BB->getContext(),totalBits)
-            )
-            ,
-            LOW_MASK
-          )
-        )
+  // a1 = bitcast a to i<totalBits>
+  auto a1=Builder.CreateBitCast(BinOp->getOperand(0),llvm::IntegerType::get(BB->getContext(),totalBits));
+  // a2 = bitcast a to i<totalBits>
+  auto a2=Builder.CreateBitCast(BinOp->getOperand(1),llvm::IntegerType::get(BB->getContext(),totalBits));
+  // m1 = and i<totalBits> a1 LOW_MASK
+  auto m1=Builder.CreateAnd(a1,LOW_MASK);
+  // m2 = and i<totalBits> a2 LOW_MASK
+  auto m2=Builder.CreateAnd(a2,LOW_MASK);
+  // r1 = add i<totalBits> m1 m2
+  auto r1=Builder.CreateAdd(m1,m2);
+  // r2 = xor i<totalBits> a1 a2
+  auto r2=Builder.CreateXor(a1,a2);
+  // r3 = and i<totalBits> r2 HIGH_MASK
+  auto r3=Builder.CreateAnd(r2,HIGH_MASK);
+  // r4 = xor i<totalBits> r1 r3
+  auto r4=Builder.CreateXor(r1,r3);
+  // bitcast r4 to 4xi3
+  Instruction* NewInst = new llvm::BitCastInst(r4,t);
+  return NewInst;
+
+}
+
+Instruction* SWARPass::SWARSub(llvm::BasicBlock* BB,llvm::BinaryOperator* BinOp){
+  auto *t = dyn_cast<VectorType>(BinOp->getType());
+  auto typeSize = t->getElementType()->getPrimitiveSizeInBits().getFixedSize();
+  auto elementCount = t->getElementCount().getFixedValue();
+  auto totalBits = typeSize * elementCount;
+  if (totalBits > 128){
+    return nullptr;
+  }
+  if (typeSize == 8 || typeSize > 15) {
+    return nullptr;
+  }
+  IRBuilder<> Builder(BinOp);
+  SWARPass::Mask mask =genBitMask(elementCount,typeSize);
+  Value* LOW_MASK;
+  Value* HIGH_MASK;
+  if (totalBits <= 64){
+    LOW_MASK = ConstantInt::get(llvm::IntegerType::get(BB->getContext(),totalBits), mask.mask_low[0]);
+    HIGH_MASK = ConstantInt::get(llvm::IntegerType::get(BB->getContext(),totalBits), mask.mask_high[0]);
+  }
+  else if(totalBits>64 && totalBits<=128){
+    LOW_MASK=Builder.CreateOr(
+        ConstantInt::get(llvm::IntegerType::get(BB->getContext(),totalBits), mask.mask_low[0])
         ,
-        // r3 = and i12 r2 2340 "100100100100"
-        Builder.CreateAnd(
-          // r2 = xor i12 a1 a2
-          Builder.CreateXor(
-            // a1 = bitcast a to i12
-            Builder.CreateBitCast(
-              BinOp->getOperand(0)
-              ,
-              llvm::IntegerType::get(BB->getContext(),totalBits)
-            )
-            ,
-            // a2 = bitcast b to i12
-            Builder.CreateBitCast(
-              BinOp->getOperand(1)
-              ,
-              llvm::IntegerType::get(BB->getContext(),totalBits)
-            )
-          )
+        Builder.CreateShl(
+          ConstantInt::get(llvm::IntegerType::get(BB->getContext(),totalBits), mask.mask_low[1])
           ,
-          HIGH_MASK
+          64
         )
-      )
-      ,t
-    );
+      );
+    HIGH_MASK=Builder.CreateOr(
+        ConstantInt::get(llvm::IntegerType::get(BB->getContext(),totalBits), mask.mask_high[0])
+        ,
+        Builder.CreateShl(
+          ConstantInt::get(llvm::IntegerType::get(BB->getContext(),totalBits), mask.mask_high[1])
+          ,
+          64
+        )
+      );
+    
+  }
+  // a1 = bitcast a to i<totalBits>
+  auto a1=Builder.CreateBitCast(BinOp->getOperand(0),llvm::IntegerType::get(BB->getContext(),totalBits));
+  // a2 = bitcast a to i<totalBits>
+  auto a2=Builder.CreateBitCast(BinOp->getOperand(1),llvm::IntegerType::get(BB->getContext(),totalBits));
+  // m1 = and i<totalBits> a1 LOW_MASK
+  auto m1=Builder.CreateAnd(a1,LOW_MASK);
+  // m2 = and i<totalBits> a2 LOW_MASK
+  auto m2=Builder.CreateAnd(a2,LOW_MASK);
+  // r1 = add i<totalBits> m1 m2
+  auto r1=Builder.CreateSub(m1,m2);
+  // r2 = xor i<totalBits> a1 a2
+  auto r2=Builder.CreateXor(a1,a2);
+  // r3 = and i<totalBits> r2 HIGH_MASK
+  auto r3=Builder.CreateAnd(r2,HIGH_MASK);
+  // r4 = xor i<totalBits> r1 r3
+  auto r4=Builder.CreateXor(r1,r3);
+  // bitcast r4 to 4xi3
+  Instruction* NewInst = new llvm::BitCastInst(r4,t);
   return NewInst;
 
 }
@@ -180,6 +197,9 @@ bool SWARPass::runOnBasicBlock(BasicBlock &BB) {
       {
       case Instruction::Add:
         NewInst = SWARAdd(&BB,BinOp);
+        break;
+      case Instruction::Sub:
+        NewInst = SWARSub(&BB,BinOp);
         break;
       default:
         break;
