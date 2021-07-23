@@ -9,7 +9,7 @@ define i16 @main() {
  %v2 = load <6 x i12>, <6 x i12>* @vec2
  
 
- %1 = call <6 x i12> @llvm.ctpop.v6i12(<6 x i12> %v2)
+ %1 = call <6 x i12> @llvm.ctpop.v6i12(<6 x i12> %v1)
  %2 = extractelement <6 x i12> %1, i32 0
  %3 = extractelement <6 x i12> %1, i32 1
  %4 = extractelement <6 x i12> %1, i32 2
