@@ -30,6 +30,8 @@ struct SWARPass : public llvm::PassInfoMixin<SWARPass> {
   Instruction* SWARAdd(llvm::BasicBlock* BB,llvm::BinaryOperator* BinOP);
   Instruction* SWARSub(llvm::BasicBlock* BB,llvm::BinaryOperator* BinOP);
   Instruction* SWARMul(llvm::BasicBlock* BB,llvm::BinaryOperator* BinOP);
+  Instruction* SWARDiv(llvm::BasicBlock* BB,llvm::BinaryOperator* BinOP);
+  Instruction* SWARRem(llvm::BasicBlock* BB,llvm::BinaryOperator* BinOP);
 };
 
 
@@ -192,13 +194,13 @@ Instruction* SWARPass::SWARMul(llvm::BasicBlock* BB,llvm::BinaryOperator* BinOp)
   auto a1=BinOp->getOperand(0);
   // a2 = bitcast a to i<totalBits>
   auto a2=BinOp->getOperand(1);
-  Value* m1[8];
-  Value* m2[8];
-  Value* m3[8];
-  Value* m4[8];
-  Value* m5[8];
-  Value* m6[8];
-  for (int i = 0; i < 8; i++)
+  Value**  m1=new Value*[typeSize];
+  Value**  m2=new Value*[typeSize];
+  Value**  m3=new Value*[typeSize];
+  Value**  m4=new Value*[typeSize];
+  Value**  m5=new Value*[typeSize];
+  Value**  m6=new Value*[typeSize];
+  for (int i = 0; i < typeSize; i++)
   {
     if (i!=0){
       m1[i]=Builder.CreateLShr(a1,i);
@@ -219,8 +221,158 @@ Instruction* SWARPass::SWARMul(llvm::BasicBlock* BB,llvm::BinaryOperator* BinOp)
     else
       m6[i]=m5[i];
   }
+  delete[] m1; 
+  delete[] m2; 
+  delete[] m3; 
+  delete[] m4; 
+  delete[] m5; 
+  delete[] m6; 
+  Instruction* NewInst = new llvm::BitCastInst(m6[typeSize-1],t);
+  return NewInst;
+}
 
-  Instruction* NewInst = new llvm::BitCastInst(m6[7],t);
+Instruction* SWARPass::SWARDiv(llvm::BasicBlock* BB,llvm::BinaryOperator* BinOp){
+  auto *t = dyn_cast<VectorType>(BinOp->getType());
+  auto typeSize = t->getElementType()->getPrimitiveSizeInBits().getFixedSize();
+  auto elementCount = t->getElementCount().getFixedValue();
+  auto totalBits = typeSize * elementCount;
+  if (totalBits > 128){
+    return nullptr;
+  }
+  if(typeSize!=8 || elementCount!=16){
+    return nullptr;
+  }
+
+  IRBuilder<> Builder(BinOp);
+  
+  // a1 = bitcast a to i<totalBits>
+  auto a1=Builder.CreateZExt(BinOp->getOperand(0),llvm::FixedVectorType::get(llvm::IntegerType::get(BB->getContext(),typeSize*2),elementCount));
+  // a2 = bitcast a to i<totalBits>
+  auto a2=Builder.CreateZExt(BinOp->getOperand(1),llvm::FixedVectorType::get(llvm::IntegerType::get(BB->getContext(),typeSize*2),elementCount));
+  Value**  m1=new Value*[typeSize];
+  Value**  m2=new Value*[typeSize];
+  Value**  m3=new Value*[typeSize];
+  Value**  m4=new Value*[typeSize];
+  Value**  m5=new Value*[typeSize];
+  Value**  m6=new Value*[typeSize];
+  Value**  m7=new Value*[typeSize];
+  Value**  m8=new Value*[typeSize];
+  Value**  m9=new Value*[typeSize];
+  Value**  m10=new Value*[typeSize];
+  Value**  m11=new Value*[typeSize];
+  Value**  m12=new Value*[typeSize];
+  Value**  m13=new Value*[typeSize];
+ 
+  for (int i = 0; i < typeSize; i++)
+  {
+    if(i!=0){
+      m1[i]=Builder.CreateShl(a2,typeSize-i-1);
+      m2[i]=Builder.CreateSub(m10[i-1],m1[i]);
+      m3[i]=Builder.CreateLShr(m2[i],typeSize*2-i-1);
+      m4[i]=Builder.CreateTrunc(m3[i],llvm::FixedVectorType::get(llvm::IntegerType::get(BB->getContext(),1),elementCount));
+      m5[i]=Builder.CreateNot(m4[i]);
+      m6[i]=Builder.CreateSExt(m4[i],llvm::FixedVectorType::get(llvm::IntegerType::get(BB->getContext(),typeSize*2),elementCount));
+      m7[i]=Builder.CreateSExt(m5[i],llvm::FixedVectorType::get(llvm::IntegerType::get(BB->getContext(),typeSize*2),elementCount));
+      m8[i]=Builder.CreateAnd(m6[i],m10[i-1]);
+      m9[i]=Builder.CreateAnd(m7[i],m2[i]);
+      m10[i]=Builder.CreateOr(m8[i],m9[i]);
+      m11[i]=Builder.CreateZExt(m5[i],llvm::FixedVectorType::get(llvm::IntegerType::get(BB->getContext(),typeSize),elementCount));
+      m12[i]=Builder.CreateShl(m11[i],typeSize-1-i);
+      m13[i]=Builder.CreateOr(m12[i],m13[i-1]);
+    }
+    else{
+      m1[i]=Builder.CreateShl(a2,typeSize-i-1);
+      m2[i]=Builder.CreateSub(a1,m1[i]);
+      m3[i]=Builder.CreateLShr(m2[i],typeSize*2-i-1);
+      m4[i]=Builder.CreateTrunc(m3[i],llvm::FixedVectorType::get(llvm::IntegerType::get(BB->getContext(),1),elementCount));
+      m5[i]=Builder.CreateNot(m4[i]);
+      m6[i]=Builder.CreateSExt(m4[i],llvm::FixedVectorType::get(llvm::IntegerType::get(BB->getContext(),typeSize*2),elementCount));
+      m7[i]=Builder.CreateSExt(m5[i],llvm::FixedVectorType::get(llvm::IntegerType::get(BB->getContext(),typeSize*2),elementCount));
+      m8[i]=Builder.CreateAnd(m6[i],a1);
+      m9[i]=Builder.CreateAnd(m7[i],m2[i]);
+      m10[i]=Builder.CreateOr(m8[i],m9[i]);
+      m11[i]=Builder.CreateZExt(m5[i],llvm::FixedVectorType::get(llvm::IntegerType::get(BB->getContext(),typeSize),elementCount));
+      m12[i]=Builder.CreateShl(m11[i],typeSize-1-i);
+      m13[i]=m12[i];
+    }
+  }
+  // auto test=Builder.CreateZExt(m4[1],llvm::FixedVectorType::get(llvm::IntegerType::get(BB->getContext(),typeSize),elementCount));
+
+  Instruction* NewInst = new llvm::BitCastInst(m13[typeSize-1],t);
+  // Instruction* NewInst = new llvm::BitCastInst(test,t);
+  return NewInst;
+
+}
+
+Instruction* SWARPass::SWARRem(llvm::BasicBlock* BB,llvm::BinaryOperator* BinOp){
+  auto *t = dyn_cast<VectorType>(BinOp->getType());
+  auto typeSize = t->getElementType()->getPrimitiveSizeInBits().getFixedSize();
+  auto elementCount = t->getElementCount().getFixedValue();
+  auto totalBits = typeSize * elementCount;
+  if (totalBits > 128){
+    return nullptr;
+  }
+  if(typeSize!=8 || elementCount!=16){
+    return nullptr;
+  }
+
+  IRBuilder<> Builder(BinOp);
+  
+  // a1 = bitcast a to i<totalBits>
+  auto a1=Builder.CreateZExt(BinOp->getOperand(0),llvm::FixedVectorType::get(llvm::IntegerType::get(BB->getContext(),typeSize*2),elementCount));
+  // a2 = bitcast a to i<totalBits>
+  auto a2=Builder.CreateZExt(BinOp->getOperand(1),llvm::FixedVectorType::get(llvm::IntegerType::get(BB->getContext(),typeSize*2),elementCount));
+  Value**  m1=new Value*[typeSize];
+  Value**  m2=new Value*[typeSize];
+  Value**  m3=new Value*[typeSize];
+  Value**  m4=new Value*[typeSize];
+  Value**  m5=new Value*[typeSize];
+  Value**  m6=new Value*[typeSize];
+  Value**  m7=new Value*[typeSize];
+  Value**  m8=new Value*[typeSize];
+  Value**  m9=new Value*[typeSize];
+  Value**  m10=new Value*[typeSize];
+  Value**  m11=new Value*[typeSize];
+  Value**  m12=new Value*[typeSize];
+  Value**  m13=new Value*[typeSize];
+ 
+  for (int i = 0; i < typeSize; i++)
+  {
+    if(i!=0){
+      m1[i]=Builder.CreateShl(a2,typeSize-i-1);
+      m2[i]=Builder.CreateSub(m10[i-1],m1[i]);
+      m3[i]=Builder.CreateLShr(m2[i],typeSize*2-i-1);
+      m4[i]=Builder.CreateTrunc(m3[i],llvm::FixedVectorType::get(llvm::IntegerType::get(BB->getContext(),1),elementCount));
+      m5[i]=Builder.CreateNot(m4[i]);
+      m6[i]=Builder.CreateSExt(m4[i],llvm::FixedVectorType::get(llvm::IntegerType::get(BB->getContext(),typeSize*2),elementCount));
+      m7[i]=Builder.CreateSExt(m5[i],llvm::FixedVectorType::get(llvm::IntegerType::get(BB->getContext(),typeSize*2),elementCount));
+      m8[i]=Builder.CreateAnd(m6[i],m10[i-1]);
+      m9[i]=Builder.CreateAnd(m7[i],m2[i]);
+      m10[i]=Builder.CreateOr(m8[i],m9[i]);
+      m11[i]=Builder.CreateZExt(m5[i],llvm::FixedVectorType::get(llvm::IntegerType::get(BB->getContext(),typeSize),elementCount));
+      m12[i]=Builder.CreateShl(m11[i],typeSize-1-i);
+      m13[i]=Builder.CreateOr(m12[i],m13[i-1]);
+    }
+    else{
+      m1[i]=Builder.CreateShl(a2,typeSize-i-1);
+      m2[i]=Builder.CreateSub(a1,m1[i]);
+      m3[i]=Builder.CreateLShr(m2[i],typeSize*2-i-1);
+      m4[i]=Builder.CreateTrunc(m3[i],llvm::FixedVectorType::get(llvm::IntegerType::get(BB->getContext(),1),elementCount));
+      m5[i]=Builder.CreateNot(m4[i]);
+      m6[i]=Builder.CreateSExt(m4[i],llvm::FixedVectorType::get(llvm::IntegerType::get(BB->getContext(),typeSize*2),elementCount));
+      m7[i]=Builder.CreateSExt(m5[i],llvm::FixedVectorType::get(llvm::IntegerType::get(BB->getContext(),typeSize*2),elementCount));
+      m8[i]=Builder.CreateAnd(m6[i],a1);
+      m9[i]=Builder.CreateAnd(m7[i],m2[i]);
+      m10[i]=Builder.CreateOr(m8[i],m9[i]);
+      m11[i]=Builder.CreateZExt(m5[i],llvm::FixedVectorType::get(llvm::IntegerType::get(BB->getContext(),typeSize),elementCount));
+      m12[i]=Builder.CreateShl(m11[i],typeSize-1-i);
+      m13[i]=m12[i];
+    }
+  }
+  auto rem=Builder.CreateTrunc(m10[typeSize-1],llvm::FixedVectorType::get(llvm::IntegerType::get(BB->getContext(),typeSize),elementCount));
+
+  Instruction* NewInst = new llvm::BitCastInst(rem,t);
+  // Instruction* NewInst = new llvm::BitCastInst(test,t);
   return NewInst;
 
 }
@@ -253,6 +405,12 @@ bool SWARPass::runOnBasicBlock(BasicBlock &BB) {
         break;
       case Instruction::Mul:
         NewInst = SWARMul(&BB,BinOp);
+        break;
+      case Instruction::UDiv:
+        NewInst = SWARDiv(&BB,BinOp);
+        break;
+      case Instruction::URem:
+        NewInst = SWARRem(&BB,BinOp);
         break;
       default:
         break;
