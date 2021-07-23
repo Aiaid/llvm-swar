@@ -6,6 +6,9 @@
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
+#include "llvm/IR/Intrinsics.h"
+#include "llvm/ADT/APInt.h"
+#include <math.h> 
 
 using namespace llvm;
 
@@ -32,9 +35,25 @@ struct SWARPass : public llvm::PassInfoMixin<SWARPass> {
   Instruction* SWARMul(llvm::BasicBlock* BB,llvm::BinaryOperator* BinOP);
   Instruction* SWARDiv(llvm::BasicBlock* BB,llvm::BinaryOperator* BinOP);
   Instruction* SWARRem(llvm::BasicBlock* BB,llvm::BinaryOperator* BinOP);
+  Instruction* SWARTrunc(llvm::BasicBlock* BB,llvm::TruncInst* op);
+  Instruction* SWARctpop(llvm::BasicBlock* BB,llvm::CallInst* op);
+  APInt genBitMask4pc(int repeats, int lengthPerRepeat, int numOf1s);
+  int nearestPowerOfTwo(int n);
 };
 
+int SWARPass::nearestPowerOfTwo(int n) {
+    int v = n; 
+    // up to 32 bits
+    v--;
+    v |= v >> 1;
+    v |= v >> 2;
+    v |= v >> 4;
+    v |= v >> 8;
+    v |= v >> 16;
+    v++; // next power of 2
 
+    return v;
+}
 
 SWARPass::Mask SWARPass::genBitMask(int repeats, int lengthPerRepeat){
   SWARPass::Mask mask;
@@ -48,6 +67,14 @@ SWARPass::Mask SWARPass::genBitMask(int repeats, int lengthPerRepeat){
       mask.mask_low[i/64]=mask.mask_low[i/64]|(unsigned long long)0<<i%64;
       mask.mask_high[i/64]=mask.mask_high[i/64]|(unsigned long long)1<<i%64;
     }
+  }
+  return mask;
+}
+
+APInt SWARPass::genBitMask4pc(int repeats, int lengthPerRepeat, int numOf1s){
+  APInt mask = APInt(repeats*lengthPerRepeat, 0, false);
+  for (uint i=0; i < repeats*lengthPerRepeat; i+=lengthPerRepeat){
+    mask.setBits(i, i+numOf1s);
   }
   return mask;
 }
@@ -378,15 +405,107 @@ Instruction* SWARPass::SWARRem(llvm::BasicBlock* BB,llvm::BinaryOperator* BinOp)
 }
 
 
+Instruction* SWARPass::SWARTrunc(llvm::BasicBlock* BB,llvm::TruncInst* op){
+  if (!op->getType()->isVectorTy()) {
+    return nullptr;
+  }
+
+  auto *t_operand = dyn_cast<VectorType>(op->getOperand(0)->getType());
+  auto typeSize = t_operand->getElementType()->getPrimitiveSizeInBits().getFixedSize();
+  auto elementCount = t_operand->getElementCount().getFixedValue();
+  auto totalBits = typeSize * elementCount;
+
+  auto *t_mask = dyn_cast<VectorType>(op->getType());
+  auto typeSize_mask = t_mask->getElementType()->getPrimitiveSizeInBits().getFixedSize();
+  auto elementCount_mask = t_mask->getElementCount().getFixedValue();
+  auto totalBits_mask = typeSize_mask * elementCount_mask;
+
+  // errs() << elementCount << " x i" << typeSize << "\n";
+
+  if (totalBits > 64){
+    return nullptr;
+  }
+  // if(typeSize!=8 || elementCount!=16){
+  //   return nullptr;
+  // }
+
+  IRBuilder<> Builder(op);
+  auto a=Builder.CreateBitCast(op->getOperand(0),llvm::IntegerType::get(BB->getContext(),totalBits));
+  std::vector<Value*> args;
+  args.push_back(ConstantInt::get(llvm::IntegerType::get(BB->getContext(),64), 139));
+  args.push_back(ConstantInt::get(llvm::IntegerType::get(BB->getContext(),64), 219));
+  // Function *pextFunc = (totalBits>32) ? Intrinsic::getDeclaration(getModule(), Intrinsic::x86_bmi_pext_64)
+  //                                           : Intrinsic::getDeclaration(getModule(), Intrinsic::x86_bmi_pext_32);
+  ArrayRef<Value* > args1 = ArrayRef<Value*>(args);
+
+  // errs() << result << "\n";
+  return nullptr;
+}
+
+Instruction* SWARPass::SWARctpop(llvm::BasicBlock* BB,llvm::CallInst* op) {
+  Function* calledFunc = op->getCalledFunction();
+  auto *t_operand = dyn_cast<VectorType>(op->getOperand(0)->getType());
+  auto typeSize = t_operand->getElementType()->getPrimitiveSizeInBits().getFixedSize();
+  if (typeSize > 32) {
+    return nullptr;
+  }
+  IRBuilder<> Builder(op);
+  auto elementCount = t_operand->getElementCount().getFixedValue();
+  auto totalBits = typeSize * elementCount;
+  auto normTypeSize = typeSize;
+  auto normTotalBits = totalBits;
+  Value* operand = op->getOperand(0);
+  // check if typeSize is power of 2
+  if ((typeSize & (typeSize - 1)) != 0) {
+    // zext each field to proper length
+    normTypeSize = nearestPowerOfTwo(typeSize);
+    normTotalBits = normTypeSize * elementCount;
+    operand = Builder.CreateZExt(operand, llvm::FixedVectorType::get(llvm::IntegerType::get(BB->getContext(),normTypeSize),elementCount));
+  }
+  errs() << elementCount << " x i" << normTypeSize << "\n";
+  auto a = Builder.CreateBitCast(operand,llvm::IntegerType::get(BB->getContext(),normTotalBits));
+  for (unsigned i = 2; i <= normTypeSize; i*=2){
+    APInt mask = genBitMask4pc(normTotalBits/i, i, i/2);
+    Value* b0 = Builder.CreateAnd(a, mask);
+    Value* b1 = Builder.CreateAnd(Builder.CreateLShr(a, i/2), mask);
+    a = Builder.CreateAdd(b0, b1);
+  }
+
+  return new TruncInst(Builder.CreateBitCast(a, llvm::FixedVectorType::get(llvm::IntegerType::get(BB->getContext(),normTypeSize),elementCount)), t_operand);
+}
 
 bool SWARPass::runOnBasicBlock(BasicBlock &BB) {
 
   // Loop over all instructions in the block. Replacing instructions requires
   // iterators, hence a for-range loop wouldn't be suitable
   for (auto Inst = BB.begin(), IE = BB.end(); Inst != IE; ++Inst) {
-
     if (Inst->isUnaryOp()){
       auto *UnInst = dyn_cast<UnaryInstruction>(Inst);
+    }
+    Instruction* NewInst=nullptr;
+    // check if it is a call operation
+    if (Inst->getOpcode() == 56) {
+      auto *callInst = dyn_cast<CallInst>(Inst);
+      auto *calledFunc = callInst->getCalledFunction();
+      if (calledFunc->isIntrinsic()) {
+        // check if it is ctpop intrinsic
+        if (calledFunc->getIntrinsicID() == 50 && calledFunc->getReturnType()->isVectorTy()) {
+          NewInst = SWARctpop(&BB, callInst);
+        }
+      }
+    }
+    if (Inst->isCast()) {
+      auto *castInst = dyn_cast<CastInst>(Inst);
+      switch (castInst->getOpcode()) {
+        case Instruction::Trunc: {
+          errs() << castInst->getOpcodeName() << "\n";
+          auto* truncInst = dyn_cast<TruncInst>(castInst);
+          NewInst = SWARTrunc(&BB, truncInst);
+          break;
+        }
+        default:
+          break;
+      }
     }
     if (Inst->isBinaryOp()){
       auto *BinOp = dyn_cast<BinaryOperator>(Inst);
@@ -394,7 +513,7 @@ bool SWARPass::runOnBasicBlock(BasicBlock &BB) {
       errs() << type_id[t->getElementType ()->getTypeID ()] << "\n";
       errs() <<"i" <<t->getElementType ()->getPrimitiveSizeInBits () << "\n";
       errs() <<"x"<< t->getElementCount () << "\n";
-      Instruction* NewInst=nullptr;
+      
       switch (BinOp->getOpcode())
       {
       case Instruction::Add:
@@ -415,13 +534,11 @@ bool SWARPass::runOnBasicBlock(BasicBlock &BB) {
       default:
         break;
       }
-      if (NewInst!=nullptr){
-        ReplaceInstWithInst(BB.getInstList(), Inst, NewInst);
-      }
+      
     }
-
-
-
+    if (NewInst!=nullptr){
+      ReplaceInstWithInst(BB.getInstList(), Inst, NewInst);
+    }
 
   }
   return true;
