@@ -39,6 +39,7 @@ struct SWARPass : public llvm::PassInfoMixin<SWARPass> {
   Instruction* SWARTrunc(llvm::BasicBlock* BB,llvm::TruncInst* op);
   Instruction* SWARctpop(llvm::BasicBlock* BB,llvm::CallInst* op);
   APInt genBitMask4pc(int repeats, int lengthPerRepeat, int numOf1s);
+  APInt genBitMask4trunc(int repeats, int lengthPerRepeat, int numOf1s, int length);
   int nearestPowerOfTwo(int n);
 };
 
@@ -75,6 +76,14 @@ SWARPass::Mask SWARPass::genBitMask(int repeats, int lengthPerRepeat){
 APInt SWARPass::genBitMask4pc(int repeats, int lengthPerRepeat, int numOf1s){
   APInt mask = APInt(repeats*lengthPerRepeat, 0, false);
   for (uint i=0; i < repeats*lengthPerRepeat; i+=lengthPerRepeat){
+    mask.setBits(i, i+numOf1s);
+  }
+  return mask;
+}
+
+APInt SWARPass::genBitMask4trunc(int repeats, int lengthPerRepeat, int numOf1s, int length){
+  APInt mask = APInt(length, 0, false);
+  for (uint i=lengthPerRepeat-numOf1s; i < repeats*lengthPerRepeat+(lengthPerRepeat-numOf1s); i+=lengthPerRepeat){
     mask.setBits(i, i+numOf1s);
   }
   return mask;
@@ -416,6 +425,7 @@ Instruction* SWARPass::SWARTrunc(llvm::BasicBlock* BB,llvm::TruncInst* op){
   auto elementCount = t_operand->getElementCount().getFixedValue();
   auto totalBits = typeSize * elementCount;
 
+  // destination type
   auto *t_mask = dyn_cast<VectorType>(op->getType());
   auto typeSize_mask = t_mask->getElementType()->getPrimitiveSizeInBits().getFixedSize();
   auto elementCount_mask = t_mask->getElementCount().getFixedValue();
@@ -431,16 +441,19 @@ Instruction* SWARPass::SWARTrunc(llvm::BasicBlock* BB,llvm::TruncInst* op){
   // }
 
   IRBuilder<> Builder(op);
-  auto a=Builder.CreateBitCast(op->getOperand(0),llvm::IntegerType::get(BB->getContext(),totalBits));
-  std::vector<Value*> args;
-  args.push_back(ConstantInt::get(llvm::IntegerType::get(BB->getContext(),64), 139));
-  args.push_back(ConstantInt::get(llvm::IntegerType::get(BB->getContext(),64), 219));
+  auto a = Builder.CreateBitCast(op->getOperand(0),llvm::IntegerType::get(BB->getContext(),totalBits));
+  auto b = Builder.CreateZExt(a, llvm::IntegerType::get(BB->getContext(),64));
+
+  APInt mask = genBitMask4trunc(elementCount, typeSize, typeSize_mask, 64);
+  Value *mask_const = ConstantInt::get(BB->getContext(), mask);
+
   Function *pextFunc = (totalBits>32) ? Intrinsic::getDeclaration(BB->getParent()->getParent(), Intrinsic::x86_bmi_pext_64)
                                             : Intrinsic::getDeclaration(BB->getParent()->getParent(), Intrinsic::x86_bmi_pext_32);
-  ArrayRef<Value* > args1 = ArrayRef<Value*>(args);
-
-  // errs() << result << "\n";
-  return nullptr;
+ 
+  Value* result = Builder.CreateCall(pextFunc->getFunctionType(), pextFunc, {b, mask_const});
+  result = Builder.CreateTrunc(result, llvm::IntegerType::get(BB->getContext(), totalBits_mask));
+  result = Builder.CreateBitCast(result, llvm::IntegerType::get(BB->getContext(), totalBits_mask));
+  return new llvm::BitCastInst(result, t_mask);
 }
 
 Instruction* SWARPass::SWARctpop(llvm::BasicBlock* BB,llvm::CallInst* op) {
@@ -499,7 +512,7 @@ bool SWARPass::runOnBasicBlock(BasicBlock &BB) {
       auto *castInst = dyn_cast<CastInst>(Inst);
       switch (castInst->getOpcode()) {
         case Instruction::Trunc: {
-          errs() << castInst->getOpcodeName() << "\n";
+          // errs() << castInst->getOpcodeName() << "\n";
           auto* truncInst = dyn_cast<TruncInst>(castInst);
           NewInst = SWARTrunc(&BB, truncInst);
           break;
