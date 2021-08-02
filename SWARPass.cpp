@@ -479,6 +479,7 @@ bool SWARPass::runOnBasicBlock(BasicBlock &BB) {
   // Loop over all instructions in the block. Replacing instructions requires
   // iterators, hence a for-range loop wouldn't be suitable
   for (auto Inst = BB.begin(), IE = BB.end(); Inst != IE; ++Inst) {
+    // errs() << Inst->getOpcodeName () << "\n";
     if (Inst->isUnaryOp()){
       auto *UnInst = dyn_cast<UnaryInstruction>(Inst);
     }
@@ -509,6 +510,10 @@ bool SWARPass::runOnBasicBlock(BasicBlock &BB) {
     }
     if (Inst->isBinaryOp()){
       auto *BinOp = dyn_cast<BinaryOperator>(Inst);
+      if(!BinOp->getType()->isVectorTy ()){
+
+        continue;
+      }
       auto *t = dyn_cast<VectorType>(BinOp->getType());
       errs() << type_id[t->getElementType ()->getTypeID ()] << "\n";
       errs() <<"i" <<t->getElementType ()->getPrimitiveSizeInBits () << "\n";
