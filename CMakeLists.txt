@@ -8,7 +8,7 @@ project(SWAR_pass)
 set(LT_LLVM_INSTALL_DIR "" CACHE PATH "LLVM installation directory")
 
 # Set Compiler FLAGS for haswell IS
-SET(GCC_COVERAGE_COMPILE_FLAGS "-march=haswell")
+SET(GCC_COVERAGE_COMPILE_FLAGS "-mbmi2")
 
 # Add the location of LLVMConfig.cmake to CMake search paths (so that
 # find_package can locate it)

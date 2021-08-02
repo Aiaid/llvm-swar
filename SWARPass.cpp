@@ -7,6 +7,7 @@
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/IR/Intrinsics.h"
+#include "llvm/IR/IntrinsicsX86.h"
 #include "llvm/ADT/APInt.h"
 #include <math.h> 
 
@@ -434,8 +435,8 @@ Instruction* SWARPass::SWARTrunc(llvm::BasicBlock* BB,llvm::TruncInst* op){
   std::vector<Value*> args;
   args.push_back(ConstantInt::get(llvm::IntegerType::get(BB->getContext(),64), 139));
   args.push_back(ConstantInt::get(llvm::IntegerType::get(BB->getContext(),64), 219));
-  // Function *pextFunc = (totalBits>32) ? Intrinsic::getDeclaration(getModule(), Intrinsic::x86_bmi_pext_64)
-  //                                           : Intrinsic::getDeclaration(getModule(), Intrinsic::x86_bmi_pext_32);
+  Function *pextFunc = (totalBits>32) ? Intrinsic::getDeclaration(BB->getParent()->getParent(), Intrinsic::x86_bmi_pext_64)
+                                            : Intrinsic::getDeclaration(BB->getParent()->getParent(), Intrinsic::x86_bmi_pext_32);
   ArrayRef<Value* > args1 = ArrayRef<Value*>(args);
 
   // errs() << result << "\n";
