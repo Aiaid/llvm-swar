@@ -36,7 +36,8 @@ struct SWARPass : public llvm::PassInfoMixin<SWARPass> {
   Instruction* SWARMul(llvm::BasicBlock* BB,llvm::BinaryOperator* BinOP);
   Instruction* SWARDiv(llvm::BasicBlock* BB,llvm::BinaryOperator* BinOP);
   Instruction* SWARRem(llvm::BasicBlock* BB,llvm::BinaryOperator* BinOP);
-  Instruction* SWARTrunc(llvm::BasicBlock* BB,llvm::TruncInst* op);
+  Instruction* SWARcttz(llvm::BasicBlock* BB,llvm::CallInst* op);
+  // Instruction* SWARTrunc(llvm::BasicBlock* BB,llvm::TruncInst* op);
   Instruction* SWARctpop(llvm::BasicBlock* BB,llvm::CallInst* op);
   APInt genBitMask4pc(int repeats, int lengthPerRepeat, int numOf1s);
   int nearestPowerOfTwo(int n);
@@ -406,42 +407,42 @@ Instruction* SWARPass::SWARRem(llvm::BasicBlock* BB,llvm::BinaryOperator* BinOp)
 }
 
 
-Instruction* SWARPass::SWARTrunc(llvm::BasicBlock* BB,llvm::TruncInst* op){
-  if (!op->getType()->isVectorTy()) {
-    return nullptr;
-  }
+// Instruction* SWARPass::SWARTrunc(llvm::BasicBlock* BB,llvm::TruncInst* op){
+//   if (!op->getType()->isVectorTy()) {
+//     return nullptr;
+//   }
 
-  auto *t_operand = dyn_cast<VectorType>(op->getOperand(0)->getType());
-  auto typeSize = t_operand->getElementType()->getPrimitiveSizeInBits().getFixedSize();
-  auto elementCount = t_operand->getElementCount().getFixedValue();
-  auto totalBits = typeSize * elementCount;
+//   auto *t_operand = dyn_cast<VectorType>(op->getOperand(0)->getType());
+//   auto typeSize = t_operand->getElementType()->getPrimitiveSizeInBits().getFixedSize();
+//   auto elementCount = t_operand->getElementCount().getFixedValue();
+//   auto totalBits = typeSize * elementCount;
 
-  auto *t_mask = dyn_cast<VectorType>(op->getType());
-  auto typeSize_mask = t_mask->getElementType()->getPrimitiveSizeInBits().getFixedSize();
-  auto elementCount_mask = t_mask->getElementCount().getFixedValue();
-  auto totalBits_mask = typeSize_mask * elementCount_mask;
+//   auto *t_mask = dyn_cast<VectorType>(op->getType());
+//   auto typeSize_mask = t_mask->getElementType()->getPrimitiveSizeInBits().getFixedSize();
+//   auto elementCount_mask = t_mask->getElementCount().getFixedValue();
+//   auto totalBits_mask = typeSize_mask * elementCount_mask;
 
-  // errs() << elementCount << " x i" << typeSize << "\n";
+//   // errs() << elementCount << " x i" << typeSize << "\n";
 
-  if (totalBits > 64){
-    return nullptr;
-  }
-  // if(typeSize!=8 || elementCount!=16){
-  //   return nullptr;
-  // }
+//   if (totalBits > 64){
+//     return nullptr;
+//   }
+//   // if(typeSize!=8 || elementCount!=16){
+//   //   return nullptr;
+//   // }
 
-  IRBuilder<> Builder(op);
-  auto a=Builder.CreateBitCast(op->getOperand(0),llvm::IntegerType::get(BB->getContext(),totalBits));
-  std::vector<Value*> args;
-  args.push_back(ConstantInt::get(llvm::IntegerType::get(BB->getContext(),64), 139));
-  args.push_back(ConstantInt::get(llvm::IntegerType::get(BB->getContext(),64), 219));
-  Function *pextFunc = (totalBits>32) ? Intrinsic::getDeclaration(BB->getParent()->getParent(), Intrinsic::x86_bmi_pext_64)
-                                            : Intrinsic::getDeclaration(BB->getParent()->getParent(), Intrinsic::x86_bmi_pext_32);
-  ArrayRef<Value* > args1 = ArrayRef<Value*>(args);
+//   IRBuilder<> Builder(op);
+//   auto a=Builder.CreateBitCast(op->getOperand(0),llvm::IntegerType::get(BB->getContext(),totalBits));
+//   std::vector<Value*> args;
+//   args.push_back(ConstantInt::get(llvm::IntegerType::get(BB->getContext(),64), 139));
+//   args.push_back(ConstantInt::get(llvm::IntegerType::get(BB->getContext(),64), 219));
+//   Function *pextFunc = (totalBits>32) ? Intrinsic::getDeclaration(BB->getParent()->getParent(), Intrinsic::x86_bmi_pext_64)
+//                                             : Intrinsic::getDeclaration(BB->getParent()->getParent(), Intrinsic::x86_bmi_pext_32);
+//   ArrayRef<Value* > args1 = ArrayRef<Value*>(args);
 
-  // errs() << result << "\n";
-  return nullptr;
-}
+//   // errs() << result << "\n";
+//   return nullptr;
+// }
 
 Instruction* SWARPass::SWARctpop(llvm::BasicBlock* BB,llvm::CallInst* op) {
   Function* calledFunc = op->getCalledFunction();
@@ -475,6 +476,24 @@ Instruction* SWARPass::SWARctpop(llvm::BasicBlock* BB,llvm::CallInst* op) {
   return new TruncInst(Builder.CreateBitCast(a, llvm::FixedVectorType::get(llvm::IntegerType::get(BB->getContext(),normTypeSize),elementCount)), t_operand);
 }
 
+Instruction* SWARPass::SWARcttz(llvm::BasicBlock* BB,llvm::CallInst* op) {
+  Function* calledFunc = op->getCalledFunction();
+  auto *t_operand = dyn_cast<VectorType>(op->getOperand(0)->getType());
+  auto typeSize = t_operand->getElementType()->getPrimitiveSizeInBits().getFixedSize();
+  if (typeSize > 32) {
+    return nullptr;
+  }
+  IRBuilder<> Builder(op);
+  auto elementCount = t_operand->getElementCount();
+  Value* operand = op->getOperand(0);
+  auto a = Builder.CreateNot(operand);
+  auto b = Builder.CreateAdd(a, ConstantInt::get(t_operand, 1));
+  auto c = Builder.CreateAnd(operand, b);
+  auto d = Builder.CreateSub(c, ConstantInt::get(t_operand, 1));
+  
+  return SWARctpop(BB, CallInst::Create(op, {d}));
+}
+
 bool SWARPass::runOnBasicBlock(BasicBlock &BB) {
 
   // Loop over all instructions in the block. Replacing instructions requires
@@ -493,22 +512,24 @@ bool SWARPass::runOnBasicBlock(BasicBlock &BB) {
         // check if it is ctpop intrinsic
         if (calledFunc->getIntrinsicID() == 50 && calledFunc->getReturnType()->isVectorTy()) {
           NewInst = SWARctpop(&BB, callInst);
+        } else if (calledFunc->getIntrinsicID() == 51 && calledFunc->getReturnType()->isVectorTy()) {
+          NewInst = SWARcttz(&BB, callInst);
         }
       }
     }
-    if (Inst->isCast()) {
-      auto *castInst = dyn_cast<CastInst>(Inst);
-      switch (castInst->getOpcode()) {
-        case Instruction::Trunc: {
-          errs() << castInst->getOpcodeName() << "\n";
-          auto* truncInst = dyn_cast<TruncInst>(castInst);
-          NewInst = SWARTrunc(&BB, truncInst);
-          break;
-        }
-        default:
-          break;
-      }
-    }
+    // if (Inst->isCast()) {
+    //   auto *castInst = dyn_cast<CastInst>(Inst);
+    //   switch (castInst->getOpcode()) {
+    //     case Instruction::Trunc: {
+    //       errs() << castInst->getOpcodeName() << "\n";
+    //       auto* truncInst = dyn_cast<TruncInst>(castInst);
+    //       NewInst = SWARTrunc(&BB, truncInst);
+    //       break;
+    //     }
+    //     default:
+    //       break;
+    //   }
+    // }
     if (Inst->isBinaryOp()){
       auto *BinOp = dyn_cast<BinaryOperator>(Inst);
       if(!BinOp->getType()->isVectorTy ()){
