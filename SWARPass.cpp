@@ -38,7 +38,7 @@ struct SWARPass : public llvm::PassInfoMixin<SWARPass> {
   Instruction* SWARRem(llvm::BasicBlock* BB,llvm::BinaryOperator* BinOP);
   Instruction* SWARcttz(llvm::BasicBlock* BB,llvm::CallInst* op);
   // Instruction* SWARTrunc(llvm::BasicBlock* BB,llvm::TruncInst* op);
-  Instruction* SWARctpop(llvm::BasicBlock* BB,llvm::CallInst* op);
+  Instruction* SWARctpop(llvm::BasicBlock* BB,llvm::Value* operand, IRBuilder<> &Builder);
   APInt genBitMask4pc(int repeats, int lengthPerRepeat, int numOf1s);
   int nearestPowerOfTwo(int n);
 };
@@ -444,19 +444,18 @@ Instruction* SWARPass::SWARRem(llvm::BasicBlock* BB,llvm::BinaryOperator* BinOp)
 //   return nullptr;
 // }
 
-Instruction* SWARPass::SWARctpop(llvm::BasicBlock* BB,llvm::CallInst* op) {
-  Function* calledFunc = op->getCalledFunction();
-  auto *t_operand = dyn_cast<VectorType>(op->getOperand(0)->getType());
+Instruction* SWARPass::SWARctpop(llvm::BasicBlock* BB,llvm::Value* operand, IRBuilder<> &Builder) {
+  auto *t_operand = dyn_cast<VectorType>(operand->getType());
   auto typeSize = t_operand->getElementType()->getPrimitiveSizeInBits().getFixedSize();
   if (typeSize > 32) {
     return nullptr;
   }
-  IRBuilder<> Builder(op);
+  // IRBuilder<> Builder(op);
   auto elementCount = t_operand->getElementCount().getFixedValue();
   auto totalBits = typeSize * elementCount;
   auto normTypeSize = typeSize;
   auto normTotalBits = totalBits;
-  Value* operand = op->getOperand(0);
+  // Value* operand = op->getOperand(0);
   // check if typeSize is power of 2
   if ((typeSize & (typeSize - 1)) != 0) {
     // zext each field to proper length
@@ -491,7 +490,7 @@ Instruction* SWARPass::SWARcttz(llvm::BasicBlock* BB,llvm::CallInst* op) {
   auto c = Builder.CreateAnd(operand, b);
   auto d = Builder.CreateSub(c, ConstantInt::get(t_operand, 1));
   
-  return SWARctpop(BB, CallInst::Create(op, {d}));
+  return SWARctpop(BB, d, Builder);
 }
 
 bool SWARPass::runOnBasicBlock(BasicBlock &BB) {
@@ -511,7 +510,9 @@ bool SWARPass::runOnBasicBlock(BasicBlock &BB) {
       if (calledFunc->isIntrinsic()) {
         // check if it is ctpop intrinsic
         if (calledFunc->getIntrinsicID() == 50 && calledFunc->getReturnType()->isVectorTy()) {
-          NewInst = SWARctpop(&BB, callInst);
+          auto operand = callInst->getOperand(0);
+          IRBuilder<> Builder(callInst);
+          NewInst = SWARctpop(&BB, operand, Builder);
         } else if (calledFunc->getIntrinsicID() == 51 && calledFunc->getReturnType()->isVectorTy()) {
           NewInst = SWARcttz(&BB, callInst);
         }
