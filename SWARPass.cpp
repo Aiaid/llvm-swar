@@ -507,9 +507,8 @@ Instruction* SWARPass::SWARctlz(llvm::BasicBlock* BB,llvm::Value* operand, IRBui
     operand = Builder.CreateOr(operand, Builder.CreateLShr(operand, ConstantInt::get(t_operand, i)));
     counter += i;
   }
-  for (int j = counter; j < typeSize; j++) {
-    operand = Builder.CreateOr(operand, Builder.CreateLShr(operand, ConstantInt::get(t_operand, 1)));
-  }
+  counter = typeSize - 1 - counter;
+  operand = Builder.CreateOr(operand, Builder.CreateLShr(operand, ConstantInt::get(t_operand, counter)));
   auto neg = Builder.CreateNot(operand);
   return SWARctpop(BB, neg, Builder);
 }
