@@ -1,8 +1,8 @@
-@.str = private constant [42 x i8] c"<4 x i4><%i, %i, %i, %i, %i, %i, %i, %i>\0A\00", align 1
+@.str = private constant [42 x i8] c"<8 x i4><%i, %i, %i, %i, %i, %i, %i, %i>\0A\00", align 1
 @0 = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
 declare i32 @printf(i8*, ...)
-@vec1 = constant <8 x i4> <i4 1, i4 2, i4 3, i4 3,i4 1, i4 2, i4 3, i4 3> ; 001 010 011 011
-@vec2 = constant <8 x i4> <i4 5, i4 1, i4 1, i4 3,i4 1, i4 2, i4 3, i4 3> ; 101 001 001 011
+@vec1 = constant <8 x i4> <i4 9, i4 10, i4 3, i4 11,i4 9, i4 10, i4 3, i4 11> ; 1001 1010 0011 1011 1001 1010 0011 1011
+@vec2 = constant <8 x i4> <i4 5, i4 9, i4 9, i4 3,i4 5, i4 9, i4 9, i4 3> ; 0101 1001 1001 0011 0101 1001 1001 0011
 
 define i16 @main() {
  %v1 = load <8 x i4>, <8 x i4>* @vec1
