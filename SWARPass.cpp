@@ -39,6 +39,7 @@ struct SWARPass : public llvm::PassInfoMixin<SWARPass> {
   Instruction* SWARcttz(llvm::BasicBlock* BB,llvm::CallInst* op);
   // Instruction* SWARTrunc(llvm::BasicBlock* BB,llvm::TruncInst* op);
   Instruction* SWARctpop(llvm::BasicBlock* BB,llvm::Value* operand, IRBuilder<> &Builder);
+  Instruction* SWARctlz(llvm::BasicBlock* BB,llvm::Value* operand, IRBuilder<> &Builder);
   APInt genBitMask4pc(int repeats, int lengthPerRepeat, int numOf1s);
   int nearestPowerOfTwo(int n);
 };
@@ -450,7 +451,7 @@ Instruction* SWARPass::SWARctpop(llvm::BasicBlock* BB,llvm::Value* operand, IRBu
   if (typeSize > 32) {
     return nullptr;
   }
-  // IRBuilder<> Builder(op);
+
   auto elementCount = t_operand->getElementCount().getFixedValue();
   auto totalBits = typeSize * elementCount;
   auto normTypeSize = typeSize;
@@ -493,6 +494,25 @@ Instruction* SWARPass::SWARcttz(llvm::BasicBlock* BB,llvm::CallInst* op) {
   return SWARctpop(BB, d, Builder);
 }
 
+Instruction* SWARPass::SWARctlz(llvm::BasicBlock* BB,llvm::Value* operand, IRBuilder<> &Builder) {
+  auto *t_operand = dyn_cast<VectorType>(operand->getType());
+  auto typeSize = t_operand->getElementType()->getPrimitiveSizeInBits().getFixedSize();
+  if (typeSize > 32) {
+    return nullptr;
+  }
+  auto elementCount = t_operand->getElementCount().getFixedValue();
+  unsigned i;
+  unsigned counter = 0;
+  for (i = 1; i <= typeSize/2; i*=2) {
+    operand = Builder.CreateOr(operand, Builder.CreateLShr(operand, ConstantInt::get(t_operand, i)));
+    counter += i;
+  }
+  counter = typeSize - 1 - counter;
+  operand = Builder.CreateOr(operand, Builder.CreateLShr(operand, ConstantInt::get(t_operand, counter)));
+  auto neg = Builder.CreateNot(operand);
+  return SWARctpop(BB, neg, Builder);
+}
+
 bool SWARPass::runOnBasicBlock(BasicBlock &BB) {
 
   // Loop over all instructions in the block. Replacing instructions requires
@@ -515,22 +535,13 @@ bool SWARPass::runOnBasicBlock(BasicBlock &BB) {
           NewInst = SWARctpop(&BB, operand, Builder);
         } else if (calledFunc->getIntrinsicID() == 51 && calledFunc->getReturnType()->isVectorTy()) {
           NewInst = SWARcttz(&BB, callInst);
+        } else if (calledFunc->getIntrinsicID() == 49 && calledFunc->getReturnType()->isVectorTy()) {
+          auto operand = callInst->getOperand(0);
+          IRBuilder<> Builder(callInst);
+          NewInst = SWARctlz(&BB, operand, Builder);
         }
       }
     }
-    // if (Inst->isCast()) {
-    //   auto *castInst = dyn_cast<CastInst>(Inst);
-    //   switch (castInst->getOpcode()) {
-    //     case Instruction::Trunc: {
-    //       errs() << castInst->getOpcodeName() << "\n";
-    //       auto* truncInst = dyn_cast<TruncInst>(castInst);
-    //       NewInst = SWARTrunc(&BB, truncInst);
-    //       break;
-    //     }
-    //     default:
-    //       break;
-    //   }
-    // }
     if (Inst->isBinaryOp()){
       auto *BinOp = dyn_cast<BinaryOperator>(Inst);
       if(!BinOp->getType()->isVectorTy ()){
