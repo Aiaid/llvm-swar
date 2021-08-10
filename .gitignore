@@ -1,5 +1,6 @@
 build/
 build*/
 c.cpp
-out
+*.out
 c.ll
+*.py
