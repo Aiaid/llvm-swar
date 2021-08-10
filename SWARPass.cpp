@@ -31,7 +31,7 @@ struct SWARPass : public llvm::PassInfoMixin<SWARPass> {
   };
 
   Mask genBitMask(int repeats, int lengthPerRepeat);
-  Instruction* SWARAdd(llvm::BasicBlock* BB,llvm::BinaryOperator* BinOP);
+  Instruction* SWARAdd(BasicBlock* BB, Value* op0, Value* op1, IRBuilder<> &Builder);
   Instruction* SWARSub(llvm::BasicBlock* BB,llvm::BinaryOperator* BinOP);
   Instruction* SWARMul(llvm::BasicBlock* BB,llvm::BinaryOperator* BinOP);
   Instruction* SWARDiv(llvm::BasicBlock* BB,llvm::BinaryOperator* BinOP);
@@ -81,8 +81,8 @@ APInt SWARPass::genBitMask4pc(int repeats, int lengthPerRepeat, int numOf1s){
   return mask;
 }
 
-Instruction* SWARPass::SWARAdd(llvm::BasicBlock* BB,llvm::BinaryOperator* BinOp){
-  auto *t = dyn_cast<VectorType>(BinOp->getType());
+Instruction* SWARPass::SWARAdd(BasicBlock* BB, Value* op0, Value* op1, IRBuilder<> &Builder){
+  auto *t = dyn_cast<VectorType>(op0->getType());
   auto typeSize = t->getElementType()->getPrimitiveSizeInBits().getFixedSize();
   auto elementCount = t->getElementCount().getFixedValue();
   auto totalBits = typeSize * elementCount;
@@ -92,8 +92,8 @@ Instruction* SWARPass::SWARAdd(llvm::BasicBlock* BB,llvm::BinaryOperator* BinOp)
   if (typeSize == 8 || typeSize > 15) {
     return nullptr;
   }
-  IRBuilder<> Builder(BinOp);
-  SWARPass::Mask mask =genBitMask(elementCount,typeSize);
+
+  SWARPass::Mask mask = genBitMask(elementCount,typeSize);
   Value* LOW_MASK;
   Value* HIGH_MASK;
   if (totalBits <= 64){
@@ -122,9 +122,9 @@ Instruction* SWARPass::SWARAdd(llvm::BasicBlock* BB,llvm::BinaryOperator* BinOp)
     
   }
   // a1 = bitcast a to i<totalBits>
-  auto a1=Builder.CreateBitCast(BinOp->getOperand(0),llvm::IntegerType::get(BB->getContext(),totalBits));
+  auto a1=Builder.CreateBitCast(op0,llvm::IntegerType::get(BB->getContext(),totalBits));
   // a2 = bitcast a to i<totalBits>
-  auto a2=Builder.CreateBitCast(BinOp->getOperand(1),llvm::IntegerType::get(BB->getContext(),totalBits));
+  auto a2=Builder.CreateBitCast(op1,llvm::IntegerType::get(BB->getContext(),totalBits));
   // m1 = and i<totalBits> a1 LOW_MASK
   auto m1=Builder.CreateAnd(a1,LOW_MASK);
   // m2 = and i<totalBits> a2 LOW_MASK
@@ -406,44 +406,6 @@ Instruction* SWARPass::SWARRem(llvm::BasicBlock* BB,llvm::BinaryOperator* BinOp)
 
 }
 
-
-// Instruction* SWARPass::SWARTrunc(llvm::BasicBlock* BB,llvm::TruncInst* op){
-//   if (!op->getType()->isVectorTy()) {
-//     return nullptr;
-//   }
-
-//   auto *t_operand = dyn_cast<VectorType>(op->getOperand(0)->getType());
-//   auto typeSize = t_operand->getElementType()->getPrimitiveSizeInBits().getFixedSize();
-//   auto elementCount = t_operand->getElementCount().getFixedValue();
-//   auto totalBits = typeSize * elementCount;
-
-//   auto *t_mask = dyn_cast<VectorType>(op->getType());
-//   auto typeSize_mask = t_mask->getElementType()->getPrimitiveSizeInBits().getFixedSize();
-//   auto elementCount_mask = t_mask->getElementCount().getFixedValue();
-//   auto totalBits_mask = typeSize_mask * elementCount_mask;
-
-//   // errs() << elementCount << " x i" << typeSize << "\n";
-
-//   if (totalBits > 64){
-//     return nullptr;
-//   }
-//   // if(typeSize!=8 || elementCount!=16){
-//   //   return nullptr;
-//   // }
-
-//   IRBuilder<> Builder(op);
-//   auto a=Builder.CreateBitCast(op->getOperand(0),llvm::IntegerType::get(BB->getContext(),totalBits));
-//   std::vector<Value*> args;
-//   args.push_back(ConstantInt::get(llvm::IntegerType::get(BB->getContext(),64), 139));
-//   args.push_back(ConstantInt::get(llvm::IntegerType::get(BB->getContext(),64), 219));
-//   Function *pextFunc = (totalBits>32) ? Intrinsic::getDeclaration(BB->getParent()->getParent(), Intrinsic::x86_bmi_pext_64)
-//                                             : Intrinsic::getDeclaration(BB->getParent()->getParent(), Intrinsic::x86_bmi_pext_32);
-//   ArrayRef<Value* > args1 = ArrayRef<Value*>(args);
-
-//   // errs() << result << "\n";
-//   return nullptr;
-// }
-
 Instruction* SWARPass::SWARctpop(llvm::BasicBlock* BB,llvm::Value* operand, IRBuilder<> &Builder) {
   auto *t_operand = dyn_cast<VectorType>(operand->getType());
   auto typeSize = t_operand->getElementType()->getPrimitiveSizeInBits().getFixedSize();
@@ -552,11 +514,12 @@ bool SWARPass::runOnBasicBlock(BasicBlock &BB) {
       errs() << type_id[t->getElementType ()->getTypeID ()] << "\n";
       errs() <<"i" <<t->getElementType ()->getPrimitiveSizeInBits () << "\n";
       errs() <<"x"<< t->getElementCount () << "\n";
+      IRBuilder<> Builder(BinOp);
       
       switch (BinOp->getOpcode())
       {
       case Instruction::Add:
-        NewInst = SWARAdd(&BB,BinOp);
+        NewInst = SWARAdd(&BB, BinOp->getOperand(0), BinOp->getOperand(1), Builder);
         break;
       case Instruction::Sub:
         NewInst = SWARSub(&BB,BinOp);
