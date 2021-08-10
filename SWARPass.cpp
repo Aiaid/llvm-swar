@@ -36,8 +36,7 @@ struct SWARPass : public llvm::PassInfoMixin<SWARPass> {
   Instruction* SWARMul(llvm::BasicBlock* BB,llvm::BinaryOperator* BinOP);
   Instruction* SWARDiv(llvm::BasicBlock* BB,llvm::BinaryOperator* BinOP);
   Instruction* SWARRem(llvm::BasicBlock* BB,llvm::BinaryOperator* BinOP);
-  Instruction* SWARcttz(llvm::BasicBlock* BB,llvm::CallInst* op);
-  // Instruction* SWARTrunc(llvm::BasicBlock* BB,llvm::TruncInst* op);
+  Instruction* SWARcttz(llvm::BasicBlock* BB,llvm::Value* operand, IRBuilder<> &Builder);
   Instruction* SWARctpop(llvm::BasicBlock* BB,llvm::Value* operand, IRBuilder<> &Builder);
   Instruction* SWARctlz(llvm::BasicBlock* BB,llvm::Value* operand, IRBuilder<> &Builder);
   APInt genBitMask4pc(int repeats, int lengthPerRepeat, int numOf1s);
@@ -476,16 +475,15 @@ Instruction* SWARPass::SWARctpop(llvm::BasicBlock* BB,llvm::Value* operand, IRBu
   return new TruncInst(Builder.CreateBitCast(a, llvm::FixedVectorType::get(llvm::IntegerType::get(BB->getContext(),normTypeSize),elementCount)), t_operand);
 }
 
-Instruction* SWARPass::SWARcttz(llvm::BasicBlock* BB,llvm::CallInst* op) {
-  Function* calledFunc = op->getCalledFunction();
-  auto *t_operand = dyn_cast<VectorType>(op->getOperand(0)->getType());
+Instruction* SWARPass::SWARcttz(llvm::BasicBlock* BB,llvm::Value* operand, IRBuilder<> &Builder) {
+  auto *t_operand = dyn_cast<VectorType>(operand->getType());
   auto typeSize = t_operand->getElementType()->getPrimitiveSizeInBits().getFixedSize();
   if (typeSize > 32) {
     return nullptr;
   }
-  IRBuilder<> Builder(op);
+
   auto elementCount = t_operand->getElementCount();
-  Value* operand = op->getOperand(0);
+
   auto a = Builder.CreateNot(operand);
   auto b = Builder.CreateAdd(a, ConstantInt::get(t_operand, 1));
   auto c = Builder.CreateAnd(operand, b);
@@ -534,7 +532,9 @@ bool SWARPass::runOnBasicBlock(BasicBlock &BB) {
           IRBuilder<> Builder(callInst);
           NewInst = SWARctpop(&BB, operand, Builder);
         } else if (calledFunc->getIntrinsicID() == 51 && calledFunc->getReturnType()->isVectorTy()) {
-          NewInst = SWARcttz(&BB, callInst);
+          auto operand = callInst->getOperand(0);
+          IRBuilder<> Builder(callInst);
+          NewInst = SWARcttz(&BB, operand, Builder);
         } else if (calledFunc->getIntrinsicID() == 49 && calledFunc->getReturnType()->isVectorTy()) {
           auto operand = callInst->getOperand(0);
           IRBuilder<> Builder(callInst);
