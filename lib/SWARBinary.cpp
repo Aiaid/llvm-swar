@@ -2,7 +2,7 @@
 
 
 using namespace llvm;
-namespace{
+
   Instruction* SWARPass::SWARAdd(BasicBlock* BB, Value* op0, Value* op1, IRBuilder<> &Builder){
     auto *t = dyn_cast<VectorType>(op0->getType());
     auto typeSize = t->getElementType()->getPrimitiveSizeInBits().getFixedSize();
@@ -321,4 +321,3 @@ namespace{
 
   }
 
-}

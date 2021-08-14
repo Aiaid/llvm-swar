@@ -1,12 +1,12 @@
 #include "SWARPass.h"
 
 using namespace llvm;
-
-namespace {
-
-
-
-  bool SWARPass::runOnBasicBlock(BasicBlock &BB) {
+const char *type_id[20] = {  "HalfTyID" , "BFloatTyID", "FloatTyID", "DoubleTyID", 
+    "X86_FP80TyID", "FP128TyID", "PPC_FP128TyID", "VoidTyID", 
+    "LabelTyID", "MetadataTyID", "X86_MMXTyID", "X86_AMXTyID", 
+    "TokenTyID", "IntegerTyID", "FunctionTyID", "PointerTyID", 
+    "StructTyID", "ArrayTyID", "FixedVectorTyID", "ScalableVectorTyID" };
+bool SWARPass::runOnBasicBlock(BasicBlock &BB) {
 
     // Loop over all instructions in the block. Replacing instructions requires
     // iterators, hence a for-range loop wouldn't be suitable
@@ -76,8 +76,9 @@ namespace {
       }
 
     }
-    Instruction* NewInst2=nullptr;
+    
     for (auto Inst = BB.begin(), IE = BB.end(); Inst != IE; ++Inst) {
+      Instruction* NewInst=nullptr;
       if (Inst->isBinaryOp()){
         auto *BinOp = dyn_cast<BinaryOperator>(Inst);
         if(!BinOp->getType()->isVectorTy ()){
@@ -90,18 +91,18 @@ namespace {
         switch (BinOp->getOpcode())
         {
         case Instruction::Add:
-          NewInst2 = SWARAdd(&BB, BinOp->getOperand(0), BinOp->getOperand(1), Builder);
+          NewInst = SWARAdd(&BB, BinOp->getOperand(0), BinOp->getOperand(1), Builder);
           break;
         case Instruction::Sub:
-          NewInst2 = SWARSub(&BB, BinOp->getOperand(0), BinOp->getOperand(1), Builder);
+          NewInst = SWARSub(&BB, BinOp->getOperand(0), BinOp->getOperand(1), Builder);
           break;
         default:
           break;
         }
         
       }
-      if (NewInst2!=nullptr){
-        ReplaceInstWithInst(BB.getInstList(), Inst, NewInst2);
+      if (NewInst!=nullptr){
+        ReplaceInstWithInst(BB.getInstList(), Inst, NewInst);
       }
 
     }
@@ -149,4 +150,3 @@ namespace {
   return getSWARPassPluginInfo();
   }
 
-}

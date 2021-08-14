@@ -1,7 +1,7 @@
 #include "SWARPass.h"
 
 using namespace llvm;
-namespace{
+
   int SWARPass::nearestPowerOfTwo(int n) {
       int v = n; 
       // up to 32 bits
@@ -107,4 +107,3 @@ namespace{
     auto neg = Builder.CreateNot(operand);
     return SWARctpop(BB, neg, Builder);
   }
-}
