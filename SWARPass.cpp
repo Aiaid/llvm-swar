@@ -213,9 +213,9 @@ Instruction* SWARPass::SWARMul(llvm::BasicBlock* BB, Value* op0, Value* op1, IRB
   if (totalBits > 128){
     return nullptr;
   }
-  // if(typeSize!=8 || elementCount!=16){
-  //   return nullptr;
-  // }
+  if(typeSize!=8 || elementCount!=16){
+    return nullptr;
+  }
 
   
   Value**  m1=new Value*[typeSize];
@@ -263,9 +263,9 @@ Instruction* SWARPass::SWARDiv(llvm::BasicBlock* BB, Value* op0, Value* op1, IRB
   if (totalBits > 128){
     return nullptr;
   }
-  // if(typeSize!=8 || elementCount!=16){
-  //   return nullptr;
-  // }
+  if(typeSize!=8 || elementCount!=16){
+    return nullptr;
+  }
 
   
   // a1 = bitcast a to i<totalBits>
@@ -335,9 +335,9 @@ Instruction* SWARPass::SWARRem(llvm::BasicBlock* BB, Value* op0, Value* op1, IRB
   if (totalBits > 128){
     return nullptr;
   }
-  // if(typeSize!=8 || elementCount!=16){
-  //   return nullptr;
-  // }
+  if(typeSize!=8 || elementCount!=16){
+    return nullptr;
+  }
 
   
   // a1 = bitcast a to i<totalBits>
@@ -511,12 +511,12 @@ bool SWARPass::runOnBasicBlock(BasicBlock &BB) {
       
       switch (BinOp->getOpcode())
       {
-      // case Instruction::Add:
-      //   NewInst = SWARAdd(&BB, BinOp->getOperand(0), BinOp->getOperand(1), Builder);
-      //   break;
-      // case Instruction::Sub:
-      //   NewInst = SWARSub(&BB, BinOp->getOperand(0), BinOp->getOperand(1), Builder);
-      //   break;
+      case Instruction::Add:
+        NewInst = SWARAdd(&BB, BinOp->getOperand(0), BinOp->getOperand(1), Builder);
+        break;
+      case Instruction::Sub:
+        NewInst = SWARSub(&BB, BinOp->getOperand(0), BinOp->getOperand(1), Builder);
+        break;
       case Instruction::Mul:
         NewInst = SWARMul(&BB, BinOp->getOperand(0), BinOp->getOperand(1), Builder);
         break;
@@ -536,35 +536,6 @@ bool SWARPass::runOnBasicBlock(BasicBlock &BB) {
     }
 
   }
-  for (auto Inst = BB.begin(), IE = BB.end(); Inst != IE; ++Inst) {
-      Instruction* NewInst=nullptr;
-      if (Inst->isBinaryOp()){
-        auto *BinOp = dyn_cast<BinaryOperator>(Inst);
-        if(!BinOp->getType()->isVectorTy ()){
-
-          continue;
-        }
-        auto *t = dyn_cast<VectorType>(BinOp->getType());
-        IRBuilder<> Builder(BinOp);
-        
-        switch (BinOp->getOpcode())
-        {
-        case Instruction::Add:
-          NewInst = SWARAdd(&BB, BinOp->getOperand(0), BinOp->getOperand(1), Builder);
-          break;
-        case Instruction::Sub:
-          NewInst = SWARSub(&BB, BinOp->getOperand(0), BinOp->getOperand(1), Builder);
-          break;
-        default:
-          break;
-        }
-        
-      }
-      if (NewInst!=nullptr){
-        ReplaceInstWithInst(BB.getInstList(), Inst, NewInst);
-      }
-
-    }
   return true;
 }
 
