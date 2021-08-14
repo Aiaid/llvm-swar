@@ -36,22 +36,7 @@ endif()
 #===============================================================================
 # 3. ADD THE TARGET
 #===============================================================================
-add_library(
-  SWARPass
-  SHARED
-  lib/SWARPass.cpp
-  lib/SWARBinary.cpp
-  lib/SWARHorizontal.cpp
-)
-
-    # Configure include directories for 'plugin'
-target_include_directories(
-  SWARPass
-  PRIVATE
-  include
-)
-
-# add_library(SWARPass SHARED SWARPass.cpp)
+add_library(SWARPass SHARED SWARPass.cpp)
 
 # Allow undefined symbols in shared objects on Darwin (this is the default
 # behaviour on Linux)
