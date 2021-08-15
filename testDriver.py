@@ -25,6 +25,8 @@ for i in range(iterations):
     # print(stat)
     x = 182
     accTime += float(stat.stderr.decode("utf-8")[x:x+9])
-    
-print(accTime)
+
+print("Number of iterations: " + str(iterations))
+print("Acumulated time: " + str(accTime) + " millis")
+print("Avg time per iteration: " + str(accTime / iterations) + " millis")
 
