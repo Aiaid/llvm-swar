@@ -32,7 +32,11 @@ for i in range(iterations):
     stat = subprocess.run(cmd, shell=True, executable="/bin/fish", capture_output=True)
     # print(stat)
     x = 182
-    accTime += float(stat.stderr.decode("utf-8")[x:x+9])
+    try:
+        accTime += float(stat.stderr.decode("utf-8")[x:x+9])
+    except ValueError:
+        i = i-1
+
 
 print("Number of iterations: " + str(iterations))
 print("Acumulated time: " + str(accTime) + " millis")
