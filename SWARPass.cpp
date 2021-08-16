@@ -426,7 +426,9 @@ Instruction* SWARPass::SWARctpop(llvm::BasicBlock* BB,llvm::Value* operand, IRBu
     Value* b1 = Builder.CreateAnd(Builder.CreateLShr(a, i/2), mask);
     a = Builder.CreateAdd(b0, b1);
   }
-
+  if ((typeSize & (typeSize - 1)) == 0) {
+    return new llvm::BitCastInst(a,t_operand);
+  }
   return new TruncInst(Builder.CreateBitCast(a, llvm::FixedVectorType::get(llvm::IntegerType::get(BB->getContext(),normTypeSize),elementCount)), t_operand);
 }
 
