@@ -57,12 +57,20 @@ define dso_local i32 @main(i32 %0, i8** %1) #0 {
   %41 = load i128, i128* %10, align 16
   %42 = bitcast i128 %40 to <16 x i8>
   %43 = bitcast i128 %41 to <16 x i8>
-  %44 = add <16 x i8> %42, %43
-  %45 = extractelement <16 x i8> %44, i32 1
-  %46 = extractelement <16 x i8> %44, i32 2
-  %47 = extractelement <16 x i8> %44, i32 3
-  %48 = extractelement <16 x i8> %44, i32 4
-  %49 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([27 x i8], [27 x i8]* @.str, i32 0, i32 0), i8 %45, i8 %46, i8 %47, i8 %48)
+  %44 = bitcast <16 x i8> %42 to i128
+  %45 = bitcast <16 x i8> %43 to i128
+  %46 = and i128 %44, 169473963133173273960190490760135540607
+  %47 = and i128 %45, 169473963133173273960190490760135540607
+  %48 = add i128 %46, %47
+  %49 = xor i128 %44, %45
+  %50 = and i128 %49, -169473963133173273960190490760135540608
+  %51 = xor i128 %48, %50
+  %52 = bitcast i128 %51 to <16 x i8>
+  %53 = extractelement <16 x i8> %52, i32 1
+  %54 = extractelement <16 x i8> %52, i32 2
+  %55 = extractelement <16 x i8> %52, i32 3
+  %56 = extractelement <16 x i8> %52, i32 4
+  %57 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([27 x i8], [27 x i8]* @.str, i32 0, i32 0), i8 %53, i8 %54, i8 %55, i8 %56)
   ret i32 0
 }
 

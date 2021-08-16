@@ -57,12 +57,29 @@ define dso_local i32 @main(i32 %0, i8** %1) #0 {
   %41 = load i128, i128* %10, align 16
   %42 = bitcast i128 %40 to <64 x i2>
   %43 = bitcast i128 %41 to <64 x i2>
-  %44 = mul <64 x i2> %42, %43
-  %45 = extractelement <64 x i2> %44, i32 1
-  %46 = extractelement <64 x i2> %44, i32 2
-  %47 = extractelement <64 x i2> %44, i32 3
-  %48 = extractelement <64 x i2> %44, i32 4
-  %49 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([27 x i8], [27 x i8]* @.str, i32 0, i32 0), i2 %45, i2 %46, i2 %47, i2 %48)
+  %44 = trunc <64 x i2> %42 to <64 x i1>
+  %45 = sext <64 x i1> %44 to <64 x i2>
+  %46 = and <64 x i2> %45, %43
+  %47 = lshr <64 x i2> %42, <i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1>
+  %48 = trunc <64 x i2> %47 to <64 x i1>
+  %49 = sext <64 x i1> %48 to <64 x i2>
+  %50 = shl <64 x i2> %43, <i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1>
+  %51 = and <64 x i2> %49, %50
+  %52 = bitcast <64 x i2> %51 to i128
+  %53 = bitcast <64 x i2> %46 to i128
+  %54 = and i128 %52, 113427455640312821154458202477256070485
+  %55 = and i128 %53, 113427455640312821154458202477256070485
+  %56 = add i128 %54, %55
+  %57 = xor i128 %52, %53
+  %58 = and i128 %57, -113427455640312821154458202477256070486
+  %59 = xor i128 %56, %58
+  %60 = bitcast i128 %59 to <64 x i2>
+  %61 = bitcast <64 x i2> %60 to <64 x i2>
+  %62 = extractelement <64 x i2> %61, i32 1
+  %63 = extractelement <64 x i2> %61, i32 2
+  %64 = extractelement <64 x i2> %61, i32 3
+  %65 = extractelement <64 x i2> %61, i32 4
+  %66 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([27 x i8], [27 x i8]* @.str, i32 0, i32 0), i2 %62, i2 %63, i2 %64, i2 %65)
   ret i32 0
 }
 

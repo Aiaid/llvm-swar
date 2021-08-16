@@ -1,5 +1,5 @@
-; ModuleID = '../test_cases/sub/sub16i8.ll'
-source_filename = "../test_cases/sub/sub16i8.ll"
+; ModuleID = '../test_cases/ctlz/ctlz16i8.ll'
+source_filename = "../test_cases/ctlz/ctlz16i8.ll"
 
 @.str = private constant [27 x i8] c"<16 x i8><%i, %i, %i, %i>\0A\00", align 1
 @0 = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
@@ -57,24 +57,42 @@ define dso_local i32 @main(i32 %0, i8** %1) #0 {
   %41 = load i128, i128* %10, align 16
   %42 = bitcast i128 %40 to <16 x i8>
   %43 = bitcast i128 %41 to <16 x i8>
-  %44 = bitcast <16 x i8> %42 to i128
-  %45 = bitcast <16 x i8> %43 to i128
-  %46 = and i128 %44, 169473963133173273960190490760135540607
-  %47 = and i128 %45, 169473963133173273960190490760135540607
-  %48 = sub i128 %46, %47
-  %49 = xor i128 %44, %45
-  %50 = and i128 %49, -169473963133173273960190490760135540608
-  %51 = xor i128 %48, %50
-  %52 = bitcast i128 %51 to <16 x i8>
-  %53 = extractelement <16 x i8> %52, i32 1
-  %54 = extractelement <16 x i8> %52, i32 2
-  %55 = extractelement <16 x i8> %52, i32 3
-  %56 = extractelement <16 x i8> %52, i32 4
-  %57 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([27 x i8], [27 x i8]* @.str, i32 0, i32 0), i8 %53, i8 %54, i8 %55, i8 %56)
+  %44 = lshr <16 x i8> %42, <i8 1, i8 1, i8 1, i8 1, i8 1, i8 1, i8 1, i8 1, i8 1, i8 1, i8 1, i8 1, i8 1, i8 1, i8 1, i8 1>
+  %45 = or <16 x i8> %42, %44
+  %46 = lshr <16 x i8> %45, <i8 2, i8 2, i8 2, i8 2, i8 2, i8 2, i8 2, i8 2, i8 2, i8 2, i8 2, i8 2, i8 2, i8 2, i8 2, i8 2>
+  %47 = or <16 x i8> %45, %46
+  %48 = lshr <16 x i8> %47, <i8 4, i8 4, i8 4, i8 4, i8 4, i8 4, i8 4, i8 4, i8 4, i8 4, i8 4, i8 4, i8 4, i8 4, i8 4, i8 4>
+  %49 = or <16 x i8> %47, %48
+  %50 = lshr <16 x i8> %49, zeroinitializer
+  %51 = or <16 x i8> %49, %50
+  %52 = xor <16 x i8> %51, <i8 -1, i8 -1, i8 -1, i8 -1, i8 -1, i8 -1, i8 -1, i8 -1, i8 -1, i8 -1, i8 -1, i8 -1, i8 -1, i8 -1, i8 -1, i8 -1>
+  %53 = bitcast <16 x i8> %52 to i128
+  %54 = and i128 %53, 113427455640312821154458202477256070485
+  %55 = lshr i128 %53, 1
+  %56 = and i128 %55, 113427455640312821154458202477256070485
+  %57 = add i128 %54, %56
+  %58 = and i128 %57, 68056473384187692692674921486353642291
+  %59 = lshr i128 %57, 2
+  %60 = and i128 %59, 68056473384187692692674921486353642291
+  %61 = add i128 %58, %60
+  %62 = and i128 %61, 20016609818878733144904388672456953615
+  %63 = lshr i128 %61, 4
+  %64 = and i128 %63, 20016609818878733144904388672456953615
+  %65 = add i128 %62, %64
+  %66 = bitcast i128 %65 to <16 x i8>
+  %67 = extractelement <16 x i8> %66, i32 1
+  %68 = extractelement <16 x i8> %66, i32 2
+  %69 = extractelement <16 x i8> %66, i32 3
+  %70 = extractelement <16 x i8> %66, i32 4
+  %71 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([27 x i8], [27 x i8]* @.str, i32 0, i32 0), i8 %67, i8 %68, i8 %69, i8 %70)
   ret i32 0
 }
 
 declare i64 @atoll(i8*) #1
 
+; Function Attrs: nofree nosync nounwind readnone speculatable willreturn
+declare <16 x i8> @llvm.ctlz.v16i8(<16 x i8>, i1 immarg) #2
+
 attributes #0 = { noinline norecurse ssp uwtable mustprogress "disable-tail-calls"="false" "frame-pointer"="all" "less-precise-fpmad"="false" "min-legal-vector-width"="0" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="penryn" "target-features"="+cx16,+cx8,+fxsr,+mmx,+sahf,+sse,+sse2,+sse3,+sse4.1,+ssse3,+x87" "tune-cpu"="generic" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #1 = { "disable-tail-calls"="false" "frame-pointer"="all" "less-precise-fpmad"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="penryn" "target-features"="+cx16,+cx8,+fxsr,+mmx,+sahf,+sse,+sse2,+sse3,+sse4.1,+ssse3,+x87" "tune-cpu"="generic" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #2 = { nofree nosync nounwind readnone speculatable willreturn }

@@ -1,5 +1,5 @@
-; ModuleID = '../test_cases/sub/sub16i8.ll'
-source_filename = "../test_cases/sub/sub16i8.ll"
+; ModuleID = '../test_cases/cttz/cttz16i8.ll'
+source_filename = "../test_cases/cttz/cttz16i8.ll"
 
 @.str = private constant [27 x i8] c"<16 x i8><%i, %i, %i, %i>\0A\00", align 1
 @0 = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
@@ -57,24 +57,37 @@ define dso_local i32 @main(i32 %0, i8** %1) #0 {
   %41 = load i128, i128* %10, align 16
   %42 = bitcast i128 %40 to <16 x i8>
   %43 = bitcast i128 %41 to <16 x i8>
-  %44 = bitcast <16 x i8> %42 to i128
-  %45 = bitcast <16 x i8> %43 to i128
-  %46 = and i128 %44, 169473963133173273960190490760135540607
-  %47 = and i128 %45, 169473963133173273960190490760135540607
-  %48 = sub i128 %46, %47
-  %49 = xor i128 %44, %45
-  %50 = and i128 %49, -169473963133173273960190490760135540608
-  %51 = xor i128 %48, %50
-  %52 = bitcast i128 %51 to <16 x i8>
-  %53 = extractelement <16 x i8> %52, i32 1
-  %54 = extractelement <16 x i8> %52, i32 2
-  %55 = extractelement <16 x i8> %52, i32 3
-  %56 = extractelement <16 x i8> %52, i32 4
-  %57 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([27 x i8], [27 x i8]* @.str, i32 0, i32 0), i8 %53, i8 %54, i8 %55, i8 %56)
+  %44 = xor <16 x i8> %42, <i8 -1, i8 -1, i8 -1, i8 -1, i8 -1, i8 -1, i8 -1, i8 -1, i8 -1, i8 -1, i8 -1, i8 -1, i8 -1, i8 -1, i8 -1, i8 -1>
+  %45 = add <16 x i8> %44, <i8 1, i8 1, i8 1, i8 1, i8 1, i8 1, i8 1, i8 1, i8 1, i8 1, i8 1, i8 1, i8 1, i8 1, i8 1, i8 1>
+  %46 = and <16 x i8> %42, %45
+  %47 = sub <16 x i8> %46, <i8 1, i8 1, i8 1, i8 1, i8 1, i8 1, i8 1, i8 1, i8 1, i8 1, i8 1, i8 1, i8 1, i8 1, i8 1, i8 1>
+  %48 = bitcast <16 x i8> %47 to i128
+  %49 = and i128 %48, 113427455640312821154458202477256070485
+  %50 = lshr i128 %48, 1
+  %51 = and i128 %50, 113427455640312821154458202477256070485
+  %52 = add i128 %49, %51
+  %53 = and i128 %52, 68056473384187692692674921486353642291
+  %54 = lshr i128 %52, 2
+  %55 = and i128 %54, 68056473384187692692674921486353642291
+  %56 = add i128 %53, %55
+  %57 = and i128 %56, 20016609818878733144904388672456953615
+  %58 = lshr i128 %56, 4
+  %59 = and i128 %58, 20016609818878733144904388672456953615
+  %60 = add i128 %57, %59
+  %61 = bitcast i128 %60 to <16 x i8>
+  %62 = extractelement <16 x i8> %61, i32 1
+  %63 = extractelement <16 x i8> %61, i32 2
+  %64 = extractelement <16 x i8> %61, i32 3
+  %65 = extractelement <16 x i8> %61, i32 4
+  %66 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([27 x i8], [27 x i8]* @.str, i32 0, i32 0), i8 %62, i8 %63, i8 %64, i8 %65)
   ret i32 0
 }
 
 declare i64 @atoll(i8*) #1
 
+; Function Attrs: nofree nosync nounwind readnone speculatable willreturn
+declare <16 x i8> @llvm.cttz.v16i8(<16 x i8>, i1 immarg) #2
+
 attributes #0 = { noinline norecurse ssp uwtable mustprogress "disable-tail-calls"="false" "frame-pointer"="all" "less-precise-fpmad"="false" "min-legal-vector-width"="0" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="penryn" "target-features"="+cx16,+cx8,+fxsr,+mmx,+sahf,+sse,+sse2,+sse3,+sse4.1,+ssse3,+x87" "tune-cpu"="generic" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #1 = { "disable-tail-calls"="false" "frame-pointer"="all" "less-precise-fpmad"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="penryn" "target-features"="+cx16,+cx8,+fxsr,+mmx,+sahf,+sse,+sse2,+sse3,+sse4.1,+ssse3,+x87" "tune-cpu"="generic" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #2 = { nofree nosync nounwind readnone speculatable willreturn }

@@ -1,7 +1,7 @@
-; ModuleID = '../test_cases/sub/sub16i8.ll'
-source_filename = "../test_cases/sub/sub16i8.ll"
+; ModuleID = '../test_cases/ctlz/ctlz32i4.ll'
+source_filename = "../test_cases/ctlz/ctlz32i4.ll"
 
-@.str = private constant [27 x i8] c"<16 x i8><%i, %i, %i, %i>\0A\00", align 1
+@.str = private constant [27 x i8] c"<32 x i4><%i, %i, %i, %i>\0A\00", align 1
 @0 = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
 
 declare i32 @printf(i8*, ...)
@@ -55,26 +55,38 @@ define dso_local i32 @main(i32 %0, i8** %1) #0 {
   store i128 %39, i128* %10, align 16
   %40 = load i128, i128* %9, align 16
   %41 = load i128, i128* %10, align 16
-  %42 = bitcast i128 %40 to <16 x i8>
-  %43 = bitcast i128 %41 to <16 x i8>
-  %44 = bitcast <16 x i8> %42 to i128
-  %45 = bitcast <16 x i8> %43 to i128
-  %46 = and i128 %44, 169473963133173273960190490760135540607
-  %47 = and i128 %45, 169473963133173273960190490760135540607
-  %48 = sub i128 %46, %47
-  %49 = xor i128 %44, %45
-  %50 = and i128 %49, -169473963133173273960190490760135540608
-  %51 = xor i128 %48, %50
-  %52 = bitcast i128 %51 to <16 x i8>
-  %53 = extractelement <16 x i8> %52, i32 1
-  %54 = extractelement <16 x i8> %52, i32 2
-  %55 = extractelement <16 x i8> %52, i32 3
-  %56 = extractelement <16 x i8> %52, i32 4
-  %57 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([27 x i8], [27 x i8]* @.str, i32 0, i32 0), i8 %53, i8 %54, i8 %55, i8 %56)
+  %42 = bitcast i128 %40 to <32 x i4>
+  %43 = bitcast i128 %41 to <32 x i4>
+  %44 = lshr <32 x i4> %42, <i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1>
+  %45 = or <32 x i4> %42, %44
+  %46 = lshr <32 x i4> %45, <i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2>
+  %47 = or <32 x i4> %45, %46
+  %48 = lshr <32 x i4> %47, zeroinitializer
+  %49 = or <32 x i4> %47, %48
+  %50 = xor <32 x i4> %49, <i4 -1, i4 -1, i4 -1, i4 -1, i4 -1, i4 -1, i4 -1, i4 -1, i4 -1, i4 -1, i4 -1, i4 -1, i4 -1, i4 -1, i4 -1, i4 -1, i4 -1, i4 -1, i4 -1, i4 -1, i4 -1, i4 -1, i4 -1, i4 -1, i4 -1, i4 -1, i4 -1, i4 -1, i4 -1, i4 -1, i4 -1, i4 -1>
+  %51 = bitcast <32 x i4> %50 to i128
+  %52 = and i128 %51, 113427455640312821154458202477256070485
+  %53 = lshr i128 %51, 1
+  %54 = and i128 %53, 113427455640312821154458202477256070485
+  %55 = add i128 %52, %54
+  %56 = and i128 %55, 68056473384187692692674921486353642291
+  %57 = lshr i128 %55, 2
+  %58 = and i128 %57, 68056473384187692692674921486353642291
+  %59 = add i128 %56, %58
+  %60 = bitcast i128 %59 to <32 x i4>
+  %61 = extractelement <32 x i4> %60, i32 1
+  %62 = extractelement <32 x i4> %60, i32 2
+  %63 = extractelement <32 x i4> %60, i32 3
+  %64 = extractelement <32 x i4> %60, i32 4
+  %65 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([27 x i8], [27 x i8]* @.str, i32 0, i32 0), i4 %61, i4 %62, i4 %63, i4 %64)
   ret i32 0
 }
 
 declare i64 @atoll(i8*) #1
 
+; Function Attrs: nofree nosync nounwind readnone speculatable willreturn
+declare <32 x i4> @llvm.ctlz.v32i4(<32 x i4>, i1 immarg) #2
+
 attributes #0 = { noinline norecurse ssp uwtable mustprogress "disable-tail-calls"="false" "frame-pointer"="all" "less-precise-fpmad"="false" "min-legal-vector-width"="0" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="penryn" "target-features"="+cx16,+cx8,+fxsr,+mmx,+sahf,+sse,+sse2,+sse3,+sse4.1,+ssse3,+x87" "tune-cpu"="generic" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #1 = { "disable-tail-calls"="false" "frame-pointer"="all" "less-precise-fpmad"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="penryn" "target-features"="+cx16,+cx8,+fxsr,+mmx,+sahf,+sse,+sse2,+sse3,+sse4.1,+ssse3,+x87" "tune-cpu"="generic" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #2 = { nofree nosync nounwind readnone speculatable willreturn }
