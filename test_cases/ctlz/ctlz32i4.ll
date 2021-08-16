@@ -2,6 +2,7 @@
 @.str = private constant [27 x i8] c"<32 x i4><%i, %i, %i, %i>\0A\00", align 1
 @0 = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
 declare i32 @printf(i8*, ...)
+declare <32 x i4>@llvm.ctlz.v32i4(<32 x i4>)
 ; Function Attrs: noinline norecurse optnone ssp uwtable mustprogress
 define dso_local i32 @main(i32 %0, i8** %1) #0 {
     %3 = alloca i32, align 4

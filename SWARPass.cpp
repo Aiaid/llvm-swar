@@ -89,9 +89,7 @@ Instruction* SWARPass::SWARAdd(BasicBlock* BB, Value* op0, Value* op1, IRBuilder
   if (totalBits > 128){
     return nullptr;
   }
-  if (typeSize == 8 || typeSize > 15) {
-    return nullptr;
-  }
+
 
   SWARPass::Mask mask = genBitMask(elementCount,typeSize);
   Value* LOW_MASK;
@@ -151,9 +149,7 @@ Instruction* SWARPass::SWARSub(llvm::BasicBlock* BB, Value* op0, Value* op1, IRB
   if (totalBits > 128){
     return nullptr;
   }
-  if (typeSize == 8 || typeSize > 15) {
-    return nullptr;
-  }
+
 
   SWARPass::Mask mask =genBitMask(elementCount,typeSize);
   Value* LOW_MASK;
@@ -228,7 +224,7 @@ Instruction* SWARPass::SWARMul(llvm::BasicBlock* BB, Value* op0, Value* op1, IRB
   {
     if (i!=0){
       m1[i]=Builder.CreateLShr(op0,i);
-      m2[i]=Builder.CreateTrunc(m1[i],llvm::FixedVectorType::get(llvm::IntegerType::get(BB->getContext(),1),elementCount));
+      m2[i]=Builder.CreateTrunc(m1[i],llvm::FixedVectorType::get(llvm::IntegerType::get(BB->getContext(),1),elementCount));   
       m3[i]=Builder.CreateSExt(m2[i],llvm::FixedVectorType::get(llvm::IntegerType::get(BB->getContext(),typeSize),elementCount));
       m4[i]=Builder.CreateShl(op1,i);
       m5[i]=Builder.CreateAnd(m3[i],m4[i]);
@@ -250,8 +246,9 @@ Instruction* SWARPass::SWARMul(llvm::BasicBlock* BB, Value* op0, Value* op1, IRB
   delete[] m3; 
   delete[] m4; 
   delete[] m5; 
-  delete[] m6; 
+  
   Instruction* NewInst = new llvm::BitCastInst(m6[typeSize-1],t);
+  delete[] m6;  
   return NewInst;
 }
 
@@ -536,7 +533,7 @@ bool SWARPass::runOnBasicBlock(BasicBlock &BB) {
     if (NewInst!=nullptr){
       ReplaceInstWithInst(BB.getInstList(), Inst, NewInst);
     }
-
+  
   }
   for (auto Inst = BB.begin(), IE = BB.end(); Inst != IE; ++Inst) {
       Instruction* NewInst=nullptr;

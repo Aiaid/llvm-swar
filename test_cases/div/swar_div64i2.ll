@@ -57,12 +57,39 @@ define dso_local i32 @main(i32 %0, i8** %1) #0 {
   %41 = load i128, i128* %10, align 16
   %42 = bitcast i128 %40 to <64 x i2>
   %43 = bitcast i128 %41 to <64 x i2>
-  %44 = udiv <64 x i2> %42, %43
-  %45 = extractelement <64 x i2> %44, i32 1
-  %46 = extractelement <64 x i2> %44, i32 2
-  %47 = extractelement <64 x i2> %44, i32 3
-  %48 = extractelement <64 x i2> %44, i32 4
-  %49 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([27 x i8], [27 x i8]* @.str, i32 0, i32 0), i2 %45, i2 %46, i2 %47, i2 %48)
+  %44 = zext <64 x i2> %42 to <64 x i4>
+  %45 = zext <64 x i2> %43 to <64 x i4>
+  %46 = shl <64 x i4> %45, <i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1, i4 1>
+  %47 = sub <64 x i4> %44, %46
+  %48 = lshr <64 x i4> %47, <i4 3, i4 3, i4 3, i4 3, i4 3, i4 3, i4 3, i4 3, i4 3, i4 3, i4 3, i4 3, i4 3, i4 3, i4 3, i4 3, i4 3, i4 3, i4 3, i4 3, i4 3, i4 3, i4 3, i4 3, i4 3, i4 3, i4 3, i4 3, i4 3, i4 3, i4 3, i4 3, i4 3, i4 3, i4 3, i4 3, i4 3, i4 3, i4 3, i4 3, i4 3, i4 3, i4 3, i4 3, i4 3, i4 3, i4 3, i4 3, i4 3, i4 3, i4 3, i4 3, i4 3, i4 3, i4 3, i4 3, i4 3, i4 3, i4 3, i4 3, i4 3, i4 3, i4 3, i4 3>
+  %49 = trunc <64 x i4> %48 to <64 x i1>
+  %50 = xor <64 x i1> %49, <i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true>
+  %51 = sext <64 x i1> %49 to <64 x i4>
+  %52 = sext <64 x i1> %50 to <64 x i4>
+  %53 = and <64 x i4> %51, %44
+  %54 = and <64 x i4> %52, %47
+  %55 = or <64 x i4> %53, %54
+  %56 = zext <64 x i1> %50 to <64 x i2>
+  %57 = shl <64 x i2> %56, <i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1, i2 1>
+  %58 = shl <64 x i4> %45, zeroinitializer
+  %59 = sub <64 x i4> %55, %58
+  %60 = lshr <64 x i4> %59, <i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2, i4 2>
+  %61 = trunc <64 x i4> %60 to <64 x i1>
+  %62 = xor <64 x i1> %61, <i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true>
+  %63 = sext <64 x i1> %61 to <64 x i4>
+  %64 = sext <64 x i1> %62 to <64 x i4>
+  %65 = and <64 x i4> %63, %55
+  %66 = and <64 x i4> %64, %59
+  %67 = or <64 x i4> %65, %66
+  %68 = zext <64 x i1> %62 to <64 x i2>
+  %69 = shl <64 x i2> %68, zeroinitializer
+  %70 = or <64 x i2> %69, %57
+  %71 = bitcast <64 x i2> %70 to <64 x i2>
+  %72 = extractelement <64 x i2> %71, i32 1
+  %73 = extractelement <64 x i2> %71, i32 2
+  %74 = extractelement <64 x i2> %71, i32 3
+  %75 = extractelement <64 x i2> %71, i32 4
+  %76 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([27 x i8], [27 x i8]* @.str, i32 0, i32 0), i2 %72, i2 %73, i2 %74, i2 %75)
   ret i32 0
 }
 
