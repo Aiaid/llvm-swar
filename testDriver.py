@@ -17,14 +17,20 @@ for opt, arg in opts:
 
 accTime = 0.0
 
+cmd = 'llc-12 ' + fileName + '.ll'
+subprocess.run(cmd, shell=True, executable="/bin/fish")
+cmd = 'clang-12 ' + fileName + '.s -o ' + fileName + '.out'
+subprocess.run(cmd, shell=True, executable="/bin/fish")
+
 for i in range(iterations):
-    rand1 = random.getrandbits(64)
-    rand2 = random.getrandbits(64)
-    rand3 = random.getrandbits(64)
-    rand4 = random.getrandbits(64)
-    cmd = 'time lli ' + fileName + ' ' + str(rand1) + ' ' + str(rand2)+ ' ' + str(rand3)+ ' ' + str(rand4)
-    stat = subprocess.run(cmd, capture_output=True)
-    print(stat)
+    rand1 = random.getrandbits(63)
+    rand2 = random.getrandbits(63)
+    rand3 = random.getrandbits(63)
+    rand4 = random.getrandbits(63)
+    
+    cmd = 'time ' + fileName + '.out ' + str(rand1) + ' ' + str(rand2)+ ' ' + str(rand3)+ ' ' + str(rand4)
+    stat = subprocess.run(cmd, shell=True, executable="/bin/fish", capture_output=True)
+    # print(stat)
     x = 182
     accTime += float(stat.stderr.decode("utf-8")[x:x+9])
 

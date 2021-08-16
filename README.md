@@ -19,4 +19,7 @@ lli ../add8i4_p.ll -1707369925 1502828947
 
 Test Driver Usage Example:
 
-`python3 ../testDriver.py -f /home/cole9712/CMPT_489/project/llvm-swar/test_cases/add8i4_p.ll -i 100`
+`python3 ../testDriver.py -f /home/cole9712/CMPT_489/project/llvm-swar/test_cases/add8i4_p -i 100`
+
+Performance test:
+
