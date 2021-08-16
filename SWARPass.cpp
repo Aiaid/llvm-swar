@@ -37,9 +37,11 @@ struct SWARPass : public llvm::PassInfoMixin<SWARPass> {
   Instruction* SWARDiv(llvm::BasicBlock* BB, Value* op0, Value* op1, IRBuilder<> &Builder);
   Instruction* SWARRem(llvm::BasicBlock* BB, Value* op0, Value* op1, IRBuilder<> &Builder);
   Instruction* SWARcttz(llvm::BasicBlock* BB,llvm::Value* operand, IRBuilder<> &Builder);
+  Value* calLegalPop(Value* a, int fw, int actualFw, int totalBits, IRBuilder<> &Builder);
+  Value* caliLegalPop(Value* a, int fw, int actualFw, int totalBits, IRBuilder<> &Builder); 
   Instruction* SWARctpop(llvm::BasicBlock* BB,llvm::Value* operand, IRBuilder<> &Builder);
   Instruction* SWARctlz(llvm::BasicBlock* BB,llvm::Value* operand, IRBuilder<> &Builder);
-  APInt genBitMask4pc(int repeats, int lengthPerRepeat, int numOf1s);
+  APInt genBitMask4pc(int repeats, int lengthPerRepeat, int numOf1s, int leftSpaces, int every, int totalLength);
   int nearestPowerOfTwo(int n);
 };
 
@@ -73,10 +75,15 @@ SWARPass::Mask SWARPass::genBitMask(int repeats, int lengthPerRepeat){
   return mask;
 }
 
-APInt SWARPass::genBitMask4pc(int repeats, int lengthPerRepeat, int numOf1s){
-  APInt mask = APInt(repeats*lengthPerRepeat, 0, false);
-  for (uint i=0; i < repeats*lengthPerRepeat; i+=lengthPerRepeat){
-    mask.setBits(i, i+numOf1s);
+APInt SWARPass::genBitMask4pc(int repeats, int lengthPerRepeat, int numOf1s, int leftSpaces, int every, int totalLength) {
+  APInt mask = APInt(totalLength, 0, false);
+  uint i = 0;
+  while (i < repeats*lengthPerRepeat) {
+    for (int j=0; j < every; j++) {
+      mask.setBits(i, i+numOf1s);
+      i += lengthPerRepeat;
+    }
+    i += leftSpaces;
   }
   return mask;
 }
@@ -396,6 +403,52 @@ Instruction* SWARPass::SWARRem(llvm::BasicBlock* BB, Value* op0, Value* op1, IRB
 
 }
 
+Value* SWARPass::caliLegalPop(Value* a, int fw, int actualFw, int totalBits, IRBuilder<> &Builder) {
+  if (actualFw == 1) {
+    return a;
+  }
+
+  int normFw = nearestPowerOfTwo(actualFw);
+  APInt mask = genBitMask4pc(totalBits/fw, fw, normFw/2, 0, 1, totalBits);
+  
+  Value* rightHalf = Builder.CreateAnd(a, mask);
+  mask.flipAllBits();
+  Value* leftHalf = Builder.CreateLShr(Builder.CreateAnd(a, mask),normFw/2);
+  // errs() << actualFw - normFw/2 << "\n";
+  Value* leftResult = caliLegalPop(leftHalf, fw, actualFw - normFw/2, totalBits, Builder);
+  Value* rightResult = calLegalPop(rightHalf, fw, normFw/2, totalBits, Builder);
+
+  // add left and right result together
+  
+  APInt ADD_MASK = genBitMask4pc(totalBits/fw, fw, fw-1, 0, 1, totalBits);
+  auto m1=Builder.CreateAnd(leftResult,ADD_MASK);
+
+  auto m2=Builder.CreateAnd(rightResult,ADD_MASK);
+  ADD_MASK.flipAllBits();
+
+  auto r1=Builder.CreateAdd(m1,m2);
+
+  auto r2=Builder.CreateXor(leftResult,rightResult);
+
+  auto r3=Builder.CreateAnd(r2, ADD_MASK);
+
+  auto r4=Builder.CreateXor(r1,r3);
+  return r4;
+}
+
+Value* SWARPass::calLegalPop(Value* a, int fw, int actualFw, int totalBits, IRBuilder<> &Builder) {
+  if (actualFw == 1) {
+    return a;
+  }
+  for (unsigned i = 2; i <= actualFw; i*=2){
+    APInt mask = genBitMask4pc((actualFw/i)*(totalBits/fw), i, i/2, fw-actualFw, (actualFw/i), totalBits);
+    Value* b0 = Builder.CreateAnd(a, mask);
+    Value* b1 = Builder.CreateAnd(Builder.CreateLShr(a, i/2), mask);
+    a = Builder.CreateAdd(b0, b1);
+  }
+  return a;
+}
+
 Instruction* SWARPass::SWARctpop(llvm::BasicBlock* BB,llvm::Value* operand, IRBuilder<> &Builder) {
   auto *t_operand = dyn_cast<VectorType>(operand->getType());
   auto typeSize = t_operand->getElementType()->getPrimitiveSizeInBits().getFixedSize();
@@ -405,28 +458,16 @@ Instruction* SWARPass::SWARctpop(llvm::BasicBlock* BB,llvm::Value* operand, IRBu
 
   auto elementCount = t_operand->getElementCount().getFixedValue();
   auto totalBits = typeSize * elementCount;
-  auto normTypeSize = typeSize;
-  auto normTotalBits = totalBits;
-  // Value* operand = op->getOperand(0);
+
+  auto a = Builder.CreateBitCast(operand,llvm::IntegerType::get(BB->getContext(),totalBits));
+
   // check if typeSize is power of 2
   if ((typeSize & (typeSize - 1)) != 0) {
-    // zext each field to proper length
-    normTypeSize = nearestPowerOfTwo(typeSize);
-    normTotalBits = normTypeSize * elementCount;
-    operand = Builder.CreateZExt(operand, llvm::FixedVectorType::get(llvm::IntegerType::get(BB->getContext(),normTypeSize),elementCount));
+    // // zext each field to proper length
+    auto res = caliLegalPop(a, typeSize, typeSize, totalBits, Builder);
+    return new llvm::BitCastInst(res, t_operand);
   }
-  errs() << elementCount << " x i" << normTypeSize << "\n";
-  auto a = Builder.CreateBitCast(operand,llvm::IntegerType::get(BB->getContext(),normTotalBits));
-  for (unsigned i = 2; i <= normTypeSize; i*=2){
-    APInt mask = genBitMask4pc(normTotalBits/i, i, i/2);
-    Value* b0 = Builder.CreateAnd(a, mask);
-    Value* b1 = Builder.CreateAnd(Builder.CreateLShr(a, i/2), mask);
-    a = Builder.CreateAdd(b0, b1);
-  }
-  if ((typeSize & (typeSize - 1)) == 0) {
-    return new llvm::BitCastInst(a,t_operand);
-  }
-  return new TruncInst(Builder.CreateBitCast(a, llvm::FixedVectorType::get(llvm::IntegerType::get(BB->getContext(),normTypeSize),elementCount)), t_operand);
+  return new llvm::BitCastInst(calLegalPop(a, typeSize, typeSize, totalBits, Builder), t_operand);
 }
 
 Instruction* SWARPass::SWARcttz(llvm::BasicBlock* BB,llvm::Value* operand, IRBuilder<> &Builder) {
