@@ -3,3 +3,9 @@ build*/
 c.cpp
 *.out
 c.ll
+test_cases/add32i4_t.s
+test_cases/add6i3.s
+test_cases/div32i4_t.ll
+test_cases/mul32i4_t.ll
+test_cases/rem32i4_t.ll
+test_cases/sub32i4_t.ll
