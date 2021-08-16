@@ -23,8 +23,6 @@ for i in range(iterations):
     rand3 = random.getrandbits(64)
     rand4 = random.getrandbits(64)
     cmd = 'time lli ' + fileName + ' ' + str(rand1) + ' ' + str(rand2)+ ' ' + str(rand3)+ ' ' + str(rand4)
-    # print(cmd)
-    # exit
     stat = subprocess.run(cmd, capture_output=True)
     print(stat)
     x = 182
