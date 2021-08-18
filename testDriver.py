@@ -33,7 +33,8 @@ for i in range(iterations):
     # print(stat)
     x = 182
     try:
-        accTime += float(stat.stderr.decode("utf-8")[x:x+9])
+        tmp = float(stat.stderr.decode("utf-8")[x:x+9])
+        accTime += tmp
     except ValueError:
         i = i-1
 

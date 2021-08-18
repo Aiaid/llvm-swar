@@ -78,7 +78,7 @@ SWARPass::Mask SWARPass::genBitMask(int repeats, int lengthPerRepeat){
 APInt SWARPass::genBitMask4pc(int repeats, int lengthPerRepeat, int numOf1s, int leftSpaces, int every, int totalLength) {
   APInt mask = APInt(totalLength, 0, false);
   uint i = 0;
-  while (i < repeats*lengthPerRepeat) {
+  while (i < totalLength) {
     for (int j=0; j < every; j++) {
       mask.setBits(i, i+numOf1s);
       i += lengthPerRepeat;
@@ -412,10 +412,18 @@ Value* SWARPass::caliLegalPop(Value* a, int fw, int actualFw, int totalBits, IRB
   APInt mask = genBitMask4pc(totalBits/fw, fw, normFw/2, 0, 1, totalBits);
   
   Value* rightHalf = Builder.CreateAnd(a, mask);
+  // errs() << mask << "\n";
   mask.flipAllBits();
+  // errs() << mask << "\n";
   Value* leftHalf = Builder.CreateLShr(Builder.CreateAnd(a, mask),normFw/2);
   // errs() << actualFw - normFw/2 << "\n";
-  Value* leftResult = caliLegalPop(leftHalf, fw, actualFw - normFw/2, totalBits, Builder);
+  int upperFw = actualFw - normFw/2;
+  Value* leftResult;
+  if ((upperFw & (upperFw - 1)) == 0) {
+    leftResult = calLegalPop(leftHalf, fw, upperFw, totalBits, Builder);
+  } else {
+    leftResult = caliLegalPop(leftHalf, fw, actualFw - normFw/2, totalBits, Builder);
+  }
   Value* rightResult = calLegalPop(rightHalf, fw, normFw/2, totalBits, Builder);
 
   // add left and right result together
@@ -427,12 +435,10 @@ Value* SWARPass::caliLegalPop(Value* a, int fw, int actualFw, int totalBits, IRB
   ADD_MASK.flipAllBits();
 
   auto r1=Builder.CreateAdd(m1,m2);
-
   auto r2=Builder.CreateXor(leftResult,rightResult);
-
   auto r3=Builder.CreateAnd(r2, ADD_MASK);
-
   auto r4=Builder.CreateXor(r1,r3);
+
   return r4;
 }
 
