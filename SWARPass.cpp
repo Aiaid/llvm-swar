@@ -96,6 +96,9 @@ Instruction* SWARPass::SWARAdd(BasicBlock* BB, Value* op0, Value* op1, IRBuilder
   if (totalBits > 128){
     return nullptr;
   }
+  if(typeSize==8 ){
+    return nullptr;
+  }
 
 
   SWARPass::Mask mask = genBitMask(elementCount,typeSize);
@@ -154,6 +157,9 @@ Instruction* SWARPass::SWARSub(llvm::BasicBlock* BB, Value* op0, Value* op1, IRB
   auto elementCount = t->getElementCount().getFixedValue();
   auto totalBits = typeSize * elementCount;
   if (totalBits > 128){
+    return nullptr;
+  }
+  if(typeSize==8 ){
     return nullptr;
   }
 

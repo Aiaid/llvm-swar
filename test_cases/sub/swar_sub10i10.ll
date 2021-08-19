@@ -1,11 +1,14 @@
+; ModuleID = '../test_cases/sub/sub10i10.ll'
+source_filename = "../test_cases/sub/sub10i10.ll"
 
-@.str = private constant [27 x i8] c"<16 x i8><%i, %i, %i, %i>\0A\00", align 1
+@.str = private constant [28 x i8] c"<10 x i10><%i, %i, %i, %i>\0A\00", align 1
 @0 = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
+
 declare i32 @printf(i8*, ...)
 
-; Function Attrs: noinline norecurse optnone ssp uwtable mustprogress
+; Function Attrs: noinline norecurse ssp uwtable mustprogress
 define dso_local i32 @main(i32 %0, i8** %1) #0 {
-    %3 = alloca i32, align 4
+  %3 = alloca i32, align 4
   %4 = alloca i8**, align 8
   %5 = alloca i64, align 8
   %6 = alloca i64, align 8
@@ -52,19 +55,28 @@ define dso_local i32 @main(i32 %0, i8** %1) #0 {
   store i128 %39, i128* %10, align 16
   %40 = load i128, i128* %9, align 16
   %41 = load i128, i128* %10, align 16
-  %42 = bitcast i128 %40 to <16 x i8>
-  %43 = bitcast i128 %41 to <16 x i8>
-  %44 = call <16 x i8>@llvm.ctlz.v16i8(<16 x i8> %42)
-  %45 = extractelement <16 x i8> %44, i32 1
-  %46 = extractelement <16 x i8> %44, i32 2
-  %47 = extractelement <16 x i8> %44, i32 3
-  %48 = extractelement <16 x i8> %44, i32 4
-  %49 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([27 x i8], [27 x i8]* @.str, i32 0, i32 0), i8 %45, i8 %46, i8 %47, i8 %48)
+  %42 = trunc i128 %40 to i100
+  %43 = trunc i128 %41 to i100
+  %44 = bitcast i100 %42 to <10 x i10>
+  %45 = bitcast i100 %43 to <10 x i10>
+  %46 = bitcast <10 x i10> %44 to i100
+  %47 = bitcast <10 x i10> %45 to i100
+  %48 = and i100 %46, 633205725040689368685058981375
+  %49 = and i100 %47, 633205725040689368685058981375
+  %50 = sub i100 %48, %49
+  %51 = xor i100 %46, %47
+  %52 = and i100 %51, -633205725040689368685058981376
+  %53 = xor i100 %50, %52
+  %54 = bitcast i100 %53 to <10 x i10>
+  %55 = extractelement <10 x i10> %54, i32 1
+  %56 = extractelement <10 x i10> %54, i32 2
+  %57 = extractelement <10 x i10> %54, i32 3
+  %58 = extractelement <10 x i10> %54, i32 4
+  %59 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([28 x i8], [28 x i8]* @.str, i32 0, i32 0), i10 %55, i10 %56, i10 %57, i10 %58)
   ret i32 0
 }
 
 declare i64 @atoll(i8*) #1
-
 
 attributes #0 = { noinline norecurse ssp uwtable mustprogress "disable-tail-calls"="false" "frame-pointer"="all" "less-precise-fpmad"="false" "min-legal-vector-width"="0" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="penryn" "target-features"="+cx16,+cx8,+fxsr,+mmx,+sahf,+sse,+sse2,+sse3,+sse4.1,+ssse3,+x87" "tune-cpu"="generic" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #1 = { "disable-tail-calls"="false" "frame-pointer"="all" "less-precise-fpmad"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="penryn" "target-features"="+cx16,+cx8,+fxsr,+mmx,+sahf,+sse,+sse2,+sse3,+sse4.1,+ssse3,+x87" "tune-cpu"="generic" "unsafe-fp-math"="false" "use-soft-float"="false" }

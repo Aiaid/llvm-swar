@@ -1,8 +1,7 @@
 
-@.str = private constant [27 x i8] c"<16 x i8><%i, %i, %i, %i>\0A\00", align 1
+@.str = private constant [28 x i8] c"<10 x i10><%i, %i, %i, %i>\0A\00", align 1
 @0 = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
 declare i32 @printf(i8*, ...)
-
 ; Function Attrs: noinline norecurse optnone ssp uwtable mustprogress
 define dso_local i32 @main(i32 %0, i8** %1) #0 {
     %3 = alloca i32, align 4
@@ -52,14 +51,16 @@ define dso_local i32 @main(i32 %0, i8** %1) #0 {
   store i128 %39, i128* %10, align 16
   %40 = load i128, i128* %9, align 16
   %41 = load i128, i128* %10, align 16
-  %42 = bitcast i128 %40 to <16 x i8>
-  %43 = bitcast i128 %41 to <16 x i8>
-  %44 = call <16 x i8>@llvm.ctlz.v16i8(<16 x i8> %42)
-  %45 = extractelement <16 x i8> %44, i32 1
-  %46 = extractelement <16 x i8> %44, i32 2
-  %47 = extractelement <16 x i8> %44, i32 3
-  %48 = extractelement <16 x i8> %44, i32 4
-  %49 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([27 x i8], [27 x i8]* @.str, i32 0, i32 0), i8 %45, i8 %46, i8 %47, i8 %48)
+  %42 = trunc i128 %40 to i100
+  %43 = trunc i128 %41 to i100
+  %44 = bitcast i100 %42 to <10 x i10>
+  %45 = bitcast i100 %43 to <10 x i10>
+  %46 = add <10 x i10> %44, %45
+  %47 = extractelement <10 x i10> %46, i32 1
+  %48 = extractelement <10 x i10> %46, i32 2
+  %49 = extractelement <10 x i10> %46, i32 3
+  %50 = extractelement <10 x i10> %46, i32 4
+  %51 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([28 x i8], [28 x i8]* @.str, i32 0, i32 0), i10 %47, i10 %48, i10 %49, i10 %50)
   ret i32 0
 }
 
